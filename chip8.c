@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <assert.h>
 
 #include <SDL2/SDL.h>
 
@@ -330,7 +331,7 @@ static inline void draw(chip8_t *vm) {
     vm->PC += 2;
 }
 
-static inline jkey(chip8_t *vm) {
+static inline void jkey(chip8_t *vm) {
     const uint8_t x = vm->opcode.hi & 0xf;
 
     if (vm->keycode == vm->V[x]) {
@@ -339,7 +340,7 @@ static inline jkey(chip8_t *vm) {
     vm->PC += 2;
 }
 
-static inline jnkey(chip8_t *vm) {
+static inline void jnkey(chip8_t *vm) {
     const uint8_t x = vm->opcode.hi & 0xf;
 
     if (vm->keycode != vm->V[x]) {
@@ -349,7 +350,7 @@ static inline jnkey(chip8_t *vm) {
 }
 
 // Sets VX to the value of the delay timer.
-static inline getdelay(chip8_t *vm) {
+static inline void getdelay(chip8_t *vm) {
     const uint8_t x = vm->opcode.hi & 0xf;
 
     vm->V[x] = vm->delay_timer;
@@ -357,7 +358,7 @@ static inline getdelay(chip8_t *vm) {
 
 // A key press is awaited, and then stored in VX. (Blocking Operation. All instruction
 // halted until next key event).
-static inline waitkey(chip8_t *vm) {
+static inline void waitkey(chip8_t *vm) {
     const uint8_t x = vm->opcode.hi & 0xf;
 
     unsigned char c = fgetc(stdin);
@@ -365,14 +366,14 @@ static inline waitkey(chip8_t *vm) {
 }
 
 // Sets the delay timer to VX.
-static inline setdelay(chip8_t *vm) {
+static inline void setdelay(chip8_t *vm) {
     const uint8_t x = vm->opcode.hi & 0xf;
 
     vm->delay_timer = vm->V[x];
 }
 
 // Sets the sound timer to VX.
-static inline setsound(chip8_t *vm) {
+static inline void setsound(chip8_t *vm) {
     const uint8_t x = vm->opcode.hi & 0xf;
 
     vm->sound_timer = vm->V[x];
@@ -380,7 +381,7 @@ static inline setsound(chip8_t *vm) {
 
 // Adds VX to I. VF is set to 1 when there is a range overflow (I+VX>0xFFF), and to
 // 0 when there isn't.
-static inline addi(chip8_t *vm) {
+static inline void addi(chip8_t *vm) {
     const uint8_t x = vm->opcode.hi & 0xf;
 
     uint8_t old = vm->I;
@@ -390,7 +391,7 @@ static inline addi(chip8_t *vm) {
 
 // Sets I to the location of the sprite for the character in VX. Characters 0x0-0xF
 // are represented by a 4x5 font.
-static inline spritei(chip8_t *vm) {
+static inline void spritei(chip8_t *vm) {
     // NYI:
 }
 
@@ -399,7 +400,7 @@ static inline spritei(chip8_t *vm) {
 // significant digit at I plus 2. (In other words, take the decimal representation
 // of VX, place the hundreds digit in memory at location in I, the tens digit at
 // location I+1, and the ones digit at location I+2.)
-static inline bcd(chip8_t *vm) {
+static inline void bcd(chip8_t *vm) {
     const uint8_t x = vm->opcode.hi & 0xf;
 
     uint8_t value = vm->V[x];
@@ -410,7 +411,7 @@ static inline bcd(chip8_t *vm) {
 
 // Stores V0 to VX (including VX) in memory starting at address I. The offset from I
 // is increased by 1 for each value written, but I itself is left unmodified.
-static inline push(chip8_t *vm) {
+static inline void push(chip8_t *vm) {
     const uint8_t x = vm->opcode.hi & 0xf;
 
     for (uint8_t i = 0; i <= x; i++) {
@@ -421,7 +422,7 @@ static inline push(chip8_t *vm) {
 // Fills V0 to VX (including VX) with values from memory starting at address I. The
 // offset from I is increased by 1 for each value written, but I itself is left
 // unmodified.
-static inline pop(chip8_t *vm) {
+static inline void pop(chip8_t *vm) {
     const uint8_t x = vm->opcode.hi & 0xf;
 
     for (uint8_t i = 0; i <= x; i++) {
@@ -542,11 +543,35 @@ void chip8_emulateCycle(chip8_t *vm)
     }
 }
 
+void selftest()
+{
+    chip8_t vm;
+
+    printf("chip8: selftest\n");
+
+    {
+        printf("Test jmp: ");
+
+        chip8_initialize(&vm);    
+        vm.opcode.value = 0x1AAA;
+        jmp(&vm);
+        assert(vm.PC == 0xAAA);
+        printf("Ok\n");
+    }
+}
+
 int main(int argc, char* argv[])
 {
     SDL_Event event;
     SDL_Renderer *renderer;
     SDL_Window *window;
+
+    for (int i = 0; i < argc; i++) {
+        if (!strcmp(argv[i], "-t")) {
+            selftest();
+            exit(0);
+        }
+    }
 
     chip8_t vm;
 
