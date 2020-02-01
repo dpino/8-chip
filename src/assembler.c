@@ -27,7 +27,7 @@ const static instr_t empty = {
     op1: "",
     op2: "",
     op3: "",
-    numops: 0 
+    numops: 0
 };
 
 source_program_t* source_program_read(char* buffer)
@@ -75,7 +75,7 @@ static void parsing_error(const char* errmsg, const char* line, int offset)
 void assemble_parse_line(instr_t *instr, char *l)
 {
     *instr = empty;
-    
+
     // Find end of line.
     char* end = strchr(l, ';') ? strchr(l, ';') : strchr(l, '\0');
     char* pos = l;
@@ -133,7 +133,7 @@ void assemble_parse_line(instr_t *instr, char *l)
     for (; i < NUM_INSTRUCTIONS; i++) {
         if (!strcmp(instr->keyword, instructions[i])) {
             break;
-        } 
+        }
     }
     if (i == NUM_INSTRUCTIONS) {
         parsing_error("Error: Unrecognized keyword", l, 0);
@@ -149,21 +149,21 @@ void assemble_parse_line(instr_t *instr, char *l)
 
 uint16_t assemble_instr(instr_t* instr)
 {
-	uint16_t opcode;
+    uint16_t opcode;
 
     // Find opcode.
     int i = 0;
-	while (i < NUM_INSTRUCTIONS) {
+    while (i < NUM_INSTRUCTIONS) {
         // printf("%s: %s\n", instructions[i], instr->keyword);
-		if (!strcmp(instr->keyword, instructions[i])) {
-			opcode = opcodes[i];
+        if (!strcmp(instr->keyword, instructions[i])) {
+            opcode = opcodes[i];
             break;
-		}
+        }
         i++;
-	}
-	if (i == NUM_INSTRUCTIONS) {
-	    fprintf(stderr, "Illegal instruction: '%s'", instr->keyword);
-	    exit(1);
+    }
+    if (i == NUM_INSTRUCTIONS) {
+        fprintf(stderr, "Illegal instruction: '%s'", instr->keyword);
+        exit(1);
     }
 
     // printf("assemble_instr\n");
@@ -180,62 +180,62 @@ uint16_t assemble_instr(instr_t* instr)
             opcode |= strtoul(instr->op1, NULL, 16);
         break;
 
-		case 0x3000: // SKE.
-		case 0x4000: // SKNE.
-		case 0x6000: // LOAD.
-		case 0x7000: // ADD.
-		case 0xC000: // RAND.
-			opcode |= strtoul(instr->op1, NULL, 16) && 0xFF << 8 | strtoul(instr->op2, NULL, 16);
-		break;
+        case 0x3000: // SKE.
+        case 0x4000: // SKNE.
+        case 0x6000: // LOAD.
+        case 0x7000: // ADD.
+        case 0xC000: // RAND.
+            opcode |= strtoul(instr->op1, NULL, 16) && 0xFF << 8 | strtoul(instr->op2, NULL, 16);
+        break;
 
-		case 0x5000: // SKRE.
-		case 0x8000: // MOVE.
-		case 0x8001: // OR.
-		case 0x8002: // AND.
-		case 0x8003: // XOR.
-		case 0x8004: // ADDR.
-		case 0x8005: // SUB.
-		case 0x8006: // SHR.
-		case 0x800E: // SHL.
-		case 0x9000: { // SKRNE.
+        case 0x5000: // SKRE.
+        case 0x8000: // MOVE.
+        case 0x8001: // OR.
+        case 0x8002: // AND.
+        case 0x8003: // XOR.
+        case 0x8004: // ADDR.
+        case 0x8005: // SUB.
+        case 0x8006: // SHR.
+        case 0x800E: // SHL.
+        case 0x9000: { // SKRNE.
               opcode |= strtoul(instr->op1, NULL, 16) << 8 | strtoul(instr->op2, NULL, 16) << 4;
-		      // printf("%.4x, %s, %s (%ld)\n", opcode, instr->op1, instr->op2, strtoul(instr->op2, NULL, 16) << 4);
+              // printf("%.4x, %s, %s (%ld)\n", opcode, instr->op1, instr->op2, strtoul(instr->op2, NULL, 16) << 4);
         }
         break;
 
-		case 0xE09E: // SKPR.
-		case 0xE0A1: // SKUP.
-		case 0xF007: // MOVED.
-		case 0xF00A: // KEYD.
-		case 0xF015: // LOADD.
-		case 0xF018: // LOADS.
-		case 0xF01E: // ADDI.
-		case 0xF029: // LDSPR.
-		case 0xF033: // BCD.
-		case 0xF055: // STOR.
-		case 0xF065: // READ.
-			opcode |= strtoul(instr->op1, NULL, 16) && 0x0F << 8;
-		break;
+        case 0xE09E: // SKPR.
+        case 0xE0A1: // SKUP.
+        case 0xF007: // MOVED.
+        case 0xF00A: // KEYD.
+        case 0xF015: // LOADD.
+        case 0xF018: // LOADS.
+        case 0xF01E: // ADDI.
+        case 0xF029: // LDSPR.
+        case 0xF033: // BCD.
+        case 0xF055: // STOR.
+        case 0xF065: // READ.
+            opcode |= strtoul(instr->op1, NULL, 16) && 0x0F << 8;
+        break;
 
-		case 0xD000: // DRAW.
-			fprintf(stderr, "NYI: DRAW\n");
-		break;
-	}
-	return opcode;
+        case 0xD000: // DRAW.
+            fprintf(stderr, "NYI: DRAW\n");
+        break;
+    }
+    return opcode;
 }
 
-void dump_instr(uint16_t opcode, const instr_t* instr) 
+void dump_instr(uint16_t opcode, const instr_t* instr)
 {
     printf("0x%.4x: ", opcode);
-    printf("{'%s'", instr->keyword); 
+    printf("{'%s'", instr->keyword);
     if (strlen(instr->op1) > 0) {
-        printf(", '%s'", instr->op1); 
+        printf(", '%s'", instr->op1);
     }
     if (strlen(instr->op2) > 0) {
-        printf(", '%s'", instr->op2); 
+        printf(", '%s'", instr->op2);
     }
     if (strlen(instr->op3) > 0) {
-        printf(", '%s'", instr->op3); 
+        printf(", '%s'", instr->op3);
     }
     printf("}\n");
 }
