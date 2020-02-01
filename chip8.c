@@ -4,6 +4,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <assert.h>
+#include <time.h>
 
 #include <SDL2/SDL.h>
 
@@ -161,7 +162,7 @@ static inline void ske(chip8_t* vm)
 // 4XNN: Skip the next instruction if V[X] != NN.
 static inline void skne(chip8_t* vm)
 {
-    const uint8_t x = vm->opcode.hi & 0xF;
+    const uint8_t x = vm->opcode.hi & 0x0F;
     const uint8_t value = vm->opcode.lo;
 
     if (vm->V[x] != value) {
@@ -173,8 +174,8 @@ static inline void skne(chip8_t* vm)
 // 5XY0: Skip the next instruction if V[X] == V[Y].
 static inline void skre(chip8_t* vm)
 {
-    const uint8_t x = vm->opcode.hi & 0xF;
-    const uint8_t y = vm->opcode.lo;
+    const uint8_t x = vm->opcode.hi & 0x0F;
+    const uint8_t y = vm->opcode.lo >> 4;
 
     if (vm->V[x] == vm->V[y]) {
         vm->PC += 2;
@@ -185,7 +186,7 @@ static inline void skre(chip8_t* vm)
 // 6XNN: Set V[X] to NN.
 static inline void load(chip8_t* vm)
 {
-    const uint8_t x = vm->opcode.hi & 0xF;
+    const uint8_t x = vm->opcode.hi & 0x0F;
     const uint8_t value = vm->opcode.lo;
 
     vm->V[x] = value;
@@ -195,7 +196,7 @@ static inline void load(chip8_t* vm)
 // 7XNN: Add NN to V[X].
 static inline void add(chip8_t* vm)
 {
-    const uint8_t x = vm->opcode.hi & 0xF;
+    const uint8_t x = vm->opcode.hi & 0x0F;
     const uint8_t value = vm->opcode.lo;
 
     vm->V[x] += value;
@@ -204,86 +205,94 @@ static inline void add(chip8_t* vm)
 
 // 8XY0 Sets VX to the value of VY.
 static inline void setr(chip8_t *vm) {
-    const uint8_t x = vm->opcode.hi & 0xF;
-    const uint8_t y = vm->opcode.lo & 0xF0;
+    const uint8_t x = vm->opcode.hi & 0x0F;
+    const uint8_t y = vm->opcode.lo >> 4;
 
     vm->V[x] = vm->V[y];
+    vm->PC += 2;
 }
 
-// 8XY1    Sets VX to VX or VY.
+// 8XY1 Sets VX to VX or VY.
 static inline void or(chip8_t *vm) {
-    const uint8_t x = vm->opcode.hi & 0xF;
-    const uint8_t y = vm->opcode.lo & 0xF0;
+    const uint8_t x = vm->opcode.hi & 0x0F;
+    const uint8_t y = vm->opcode.lo >> 4;
 
     vm->V[x] = vm->V[x] | vm->V[y];
+    vm->PC += 2;
 }
 
-// 8XY2    Sets VX to VX and VY.
+// 8XY2 Sets VX to VX and VY.
 static inline void and(chip8_t *vm) {
-    const uint8_t x = vm->opcode.hi & 0xF;
-    const uint8_t y = vm->opcode.lo & 0xF0;
+    const uint8_t x = vm->opcode.hi & 0x0F;
+    const uint8_t y = vm->opcode.lo >> 4;
 
     vm->V[x] = vm->V[x] & vm->V[y];
+    vm->PC += 2;
 }
 
 // 8XY3 Sets VX to VX xor VY.
 static inline void xor(chip8_t *vm) {
-    const uint8_t x = vm->opcode.hi & 0xF;
-    const uint8_t y = vm->opcode.lo & 0xF0;
+    const uint8_t x = vm->opcode.hi & 0x0F;
+    const uint8_t y = vm->opcode.lo >> 4;
 
     vm->V[x] = vm->V[x] ^ vm->V[y];
+    vm->PC += 2;
 }
 
 // 8XY4 Adds VY to VX. VF is set to 1 when there's a carry, and to 0 when there isn't.
 static inline void addr(chip8_t *vm) {
-    const uint8_t x = vm->opcode.hi & 0xF;
-    const uint8_t y = vm->opcode.lo & 0xF0;
+    const uint8_t x = vm->opcode.hi & 0x0F;
+    const uint8_t y = vm->opcode.lo >> 4;
     uint8_t temp = vm->V[x];
     vm->V[x] += vm->V[y];
     vm->V[0xF] = vm->V[x] < temp ? 1 : 0;
+    vm->PC += 2;
 }
 
 // 8XY5 VY is subtracted from VX. VF is set to 0 when there's a borrow, and 1 when there isn't.
 static inline void sub(chip8_t *vm) {
-    const uint8_t x = vm->opcode.hi & 0xF;
-    const uint8_t y = vm->opcode.lo & 0xF0;
+    const uint8_t x = vm->opcode.hi & 0x0F;
+    const uint8_t y = vm->opcode.lo >> 4;
 
     uint8_t temp = vm->V[x];
     vm->V[x] -= vm->V[y];
     vm->V[0xF] = vm->V[x] > temp ? 1 : 0;
+    vm->PC += 2;
 }
 
-// 8XY6 Stores the least significant bit of VX in VF and then shifts VX to the right by 1.
+// 8X06 Stores the least significant bit of VX in VF and then shifts VX to the right by 1.
 static inline void shr(chip8_t *vm) {
-    const uint8_t x = vm->opcode.hi & 0xF;
+    const uint8_t x = vm->opcode.hi & 0x0F;
 
     vm->V[0xF] = vm->V[x] & 0x1 ? 1 : 0;
     vm->V[x] >>= 1;
+    vm->PC += 2;
 }
 
 // 8XY7 Sets VX to VY minus VX. VF is set to 0 when there's a borrow, and 1 when there isn't.
 static inline void subb(chip8_t *vm) {
-    const uint8_t x = vm->opcode.hi & 0xF;
-    const uint8_t y = vm->opcode.lo & 0xF0;
+    const uint8_t x = vm->opcode.hi & 0x0F;
+    const uint8_t y = vm->opcode.lo >> 4;
 
     uint8_t temp = vm->V[x];
     vm->V[x] = vm->V[y] - vm->V[x];
     vm->V[0xF] = vm->V[x] > temp ? 1 : 0;
+    vm->PC += 2;
 }
 
-// 8XYE Stores the most significant bit of VX in VF and then shifts VX to the left by 1.[b]
+// 8X0E Stores the most significant bit of VX in VF and then shifts VX to the left by 1.
 static inline void shl(chip8_t *vm) {
-    const uint8_t x = vm->opcode.hi & 0xF;
-    const uint8_t y = vm->opcode.lo & 0xF0;
+    const uint8_t x = vm->opcode.hi & 0x0F;
 
     vm->V[0xF] = vm->V[x] & 0x80 ? 1 : 0;
     vm->V[x] <<= 1;
+    vm->PC += 2;
 }
 
 // 9XY0: Skip the next instruction if V[X] != V[Y].
 static inline void jneq(chip8_t *vm) {
-    const uint8_t x = vm->opcode.hi & 0xF;
-    const uint8_t y = vm->opcode.lo & 0xF0;
+    const uint8_t x = vm->opcode.hi & 0x0F;
+    const uint8_t y = vm->opcode.lo >> 4;
 
     if (vm->V[x] != vm->V[y]) {
         vm->PC += 2;
@@ -294,6 +303,7 @@ static inline void jneq(chip8_t *vm) {
 // ANNN: Set I to the address of NNN.
 static inline void seti(chip8_t *vm) {
     vm->I = address(vm->opcode);
+    vm->PC += 2;
 }
 
 // BNNN: Jump to the address NNN + V[0].
@@ -303,10 +313,12 @@ static inline void jmpv0(chip8_t *vm) {
 
 // CXNN: Set V[X] to the result of a bitwise 'and' operation on a random number (0-255) and NN.
 static inline void rrand(chip8_t *vm) {
-    const uint8_t x = vm->opcode.hi & 0xf;
+    const uint8_t x = vm->opcode.hi & 0x0F;
     const uint8_t value = vm->opcode.lo;
 
+    srand(time(NULL));
     vm->V[x] = random() % 256 & value;
+    vm->PC += 2;
 }
 
 // DXYN: Draw a sprite at coordinate (V[X], V[Y]) that has a width of 8 pixels and a height of N pixels.
@@ -463,26 +475,26 @@ void chip8_emulateCycle(chip8_t *vm)
         case 0x7: add(vm);
                   break;
         case 0x8: {
-                      const uint8_t lo = vm->opcode.lo & 0xF;
+                      const uint8_t lsb = vm->opcode.lo & 0x0F;
 
                       // Bitwise operations.
-                      if (lo == 0x0) {
+                      if (lsb == 0x0) {
                           setr(vm);
-                      } else if (lo == 0x1) {
+                      } else if (lsb == 0x1) {
                           or(vm);
-                      } else if (lo == 0x2) {
+                      } else if (lsb == 0x2) {
                           and(vm);
-                      } else if (lo == 0x3) {
+                      } else if (lsb == 0x3) {
                           xor(vm);
-                      } else if (lo == 0x4) {
+                      } else if (lsb == 0x4) {
                           addr(vm);
-                      } else if (lo == 0x5) {
+                      } else if (lsb == 0x5) {
                           sub(vm);
-                      } else if (lo == 0x6) {
+                      } else if (lsb == 0x6) {
                           shr(vm);
-                      } else if (lo == 0x7) {
+                      } else if (lsb == 0x7) {
                           subb(vm);
-                      } else if (lo == 0xE) {
+                      } else if (lsb == 0xE) {
                           shl(vm);
                       } else {
                           // Unreachable.
@@ -549,13 +561,207 @@ void selftest()
 
     printf("chip8: selftest\n");
 
+    printf("Test jmp:\t");
     {
-        printf("Test jmp: ");
-
-        chip8_initialize(&vm);    
+        chip8_initialize(&vm);
         vm.opcode.value = 0x1AAA;
         jmp(&vm);
         assert(vm.PC == 0xAAA);
+        printf("Ok\n");
+    }
+
+    printf("Test call:\t");
+    {
+        chip8_initialize(&vm);
+        vm.opcode.value = 0x2AAA;
+        call(&vm);
+        assert(vm.SP == 1 && vm.stack[vm.SP] == 0x200 && vm.PC == 0xAAA);
+        printf("Ok\n");
+    }
+
+    printf("Test ske:\t");
+    {
+        chip8_initialize(&vm);
+        vm.opcode.value = 0x30AA;
+        vm.V[0] = 0xAA;
+        ske(&vm);
+        assert(vm.PC = 0x204);
+        printf("Ok\n");
+    }
+
+    printf("Test skne:\t");
+    {
+        chip8_initialize(&vm);
+        vm.opcode.value = 0x4DAA;
+        vm.V[0xD] = 0xBB;
+        ske(&vm);
+        assert(vm.PC = 0x204);
+        printf("Ok\n");
+    }
+
+    printf("Test skre:\t");
+    {
+        chip8_initialize(&vm);
+        vm.opcode.value = 0x5DC0;
+        vm.V[0xD] = 0x80;
+        vm.V[0xC] = 0x80;
+        skre(&vm);
+        assert(vm.PC == 0x204);
+        printf("Ok\n");
+    }
+
+    printf("Test load:\t");
+    {
+        chip8_initialize(&vm);
+        vm.opcode.value = 0x60AA;
+        load(&vm);
+        assert(vm.PC == 0x202 && vm.V[0] == 0xAA);
+        printf("Ok\n");
+    }
+
+    printf("Test add:\t");
+    {
+        chip8_initialize(&vm);
+        vm.opcode.value = 0x70FE;
+        vm.V[0] = 1;
+        add(&vm);
+        assert(vm.PC == 0x202 && vm.V[0] == 0xFF);
+        printf("Ok\n");
+    }
+
+    printf("Test jneq:\t");
+    {
+        chip8_initialize(&vm);
+        vm.opcode.value = 0x9010;
+        vm.V[0] = 0xAA;
+        vm.V[1] = 0xAB;
+        jneq(&vm);
+        assert(vm.PC == 0x204);
+        printf("Ok\n");
+    }
+
+    printf("Test seti:\t");
+    {
+        chip8_initialize(&vm);
+        vm.opcode.value = 0xABBB;
+        seti(&vm);
+        assert(vm.PC == 0x202 && vm.I == 0xBBB);
+        printf("Ok\n");
+    }
+
+    printf("Test jmpv0:\t");
+    {
+        chip8_initialize(&vm);
+        vm.opcode.value = 0xBC00;
+        vm.V[0] = 0xCC;
+        jmpv0(&vm);
+        assert(vm.PC == 0xCCC);
+        printf("Ok\n");
+    }
+
+    printf("Test rrand:\t");
+    {
+        chip8_initialize(&vm);
+        vm.opcode.value = 0xC0FF;
+        rrand(&vm);
+        assert(vm.PC == 0x202 && vm.V[0] > 0 && vm.V[0] <= 0xFF);
+        printf("Ok\n");
+    }
+
+    printf("Test setr:\t");
+    {
+        chip8_initialize(&vm);
+        vm.opcode.value = 0x8120;
+        vm.V[1] = 0x00;
+        vm.V[2] = 0xFF;
+        setr(&vm);
+        assert(vm.PC == 0x202 && vm.V[1] == 0xFF);
+        printf("Ok\n");
+    }
+
+    printf("Test or:\t");
+    {
+        chip8_initialize(&vm);
+        vm.opcode.value = 0x8121;
+        vm.V[1] = 0x01;
+        vm.V[2] = 0xFE;
+        or(&vm);
+        assert(vm.PC == 0x202 && vm.V[1] == 0xFF);
+        printf("Ok\n");
+    }
+
+    printf("Test and:\t");
+    {
+        chip8_initialize(&vm);
+        vm.opcode.value = 0x8122;
+        vm.V[1] = 0x01;
+        vm.V[2] = 0xFF;
+        and(&vm);
+        assert(vm.PC == 0x202 && vm.V[1] == 0x01);
+        printf("Ok\n");
+    }
+
+    printf("Test xor:\t");
+    {
+        chip8_initialize(&vm);
+        vm.opcode.value = 0x8123;
+        vm.V[1] = 0x0F;
+        vm.V[2] = 0xF0;
+        xor(&vm);
+        assert(vm.PC == 0x202 && vm.V[1] == 0xFF);
+        printf("Ok\n");
+    }
+
+    printf("Test addr:\t");
+    {
+        chip8_initialize(&vm);
+        vm.opcode.value = 0x8014;
+        vm.V[0] = 0xFF;
+        vm.V[1] = 0xFF;
+        addr(&vm);
+        assert(vm.PC == 0x202 && vm.V[0] == 0xFE && vm.V[0xF] == 1);
+        printf("Ok\n");
+    }
+
+    printf("Test sub:\t");
+    {
+        chip8_initialize(&vm);
+        vm.opcode.value = 0x8015;
+        vm.V[0] = 0x01;
+        vm.V[1] = 0x02;
+        sub(&vm);
+        assert(vm.PC == 0x202 && vm.V[0] == 0xFF && vm.V[0xF] == 0x1);
+        printf("Ok\n");
+    }
+
+    printf("Test shr:\t");
+    {
+        chip8_initialize(&vm);
+        vm.opcode.value = 0x8006;
+        vm.V[0] = 0xFF;
+        shr(&vm);
+        assert(vm.PC == 0x202 && vm.V[0] == 0x7F);
+        printf("Ok\n");
+    }
+
+    printf("Test subb:\t");
+    {
+        chip8_initialize(&vm);
+        vm.opcode.value = 0x8127;
+        vm.V[1] = 0xFF;
+        vm.V[2] = 0xFF;
+        subb(&vm);
+        assert(vm.PC == 0x202 && vm.V[1] == 0x0);
+        printf("Ok\n");
+    }
+
+    printf("Test shl:\t");
+    {
+        chip8_initialize(&vm);
+        vm.opcode.value = 0x800E;
+        vm.V[0] = 0xFF;
+        shl(&vm);
+        assert(vm.PC == 0x202 && vm.V[0] == 0xFE);
         printf("Ok\n");
     }
 }

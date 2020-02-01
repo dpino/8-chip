@@ -22,7 +22,9 @@ typedef struct {
     uint8_t ram[RAM_MEMORY];
     uint8_t V[NUM_REGISTERS];
     union opcode_t {
-    	uint8_t hi, lo;
+        struct {
+            uint8_t lo, hi;
+        };
     	uint16_t value;
     } opcode;
     uint16_t I;
