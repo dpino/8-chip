@@ -197,9 +197,11 @@ uint16_t assemble_instr(instr_t* instr)
 		case 0x8005: // SUB.
 		case 0x8006: // SHR.
 		case 0x800E: // SHL.
-		case 0x9000: // SKRNE.
-			opcode |= strtoul(instr->op1, NULL, 16) && 0xFF << 8 | strtoul(instr->op2, NULL, 16) & 0xF0;
-		break;
+		case 0x9000: { // SKRNE.
+              opcode |= strtoul(instr->op1, NULL, 16) << 8 | strtoul(instr->op2, NULL, 16) << 4;
+		      // printf("%.4x, %s, %s (%ld)\n", opcode, instr->op1, instr->op2, strtoul(instr->op2, NULL, 16) << 4);
+        }
+        break;
 
 		case 0xE09E: // SKPR.
 		case 0xE0A1: // SKUP.
@@ -238,6 +240,18 @@ void dump_instr(uint16_t opcode, const instr_t* instr)
     printf("}\n");
 }
 
+static void dump_bytecode(const char* fileout, uint16_t* output, size_t size)
+{
+    FILE* fp = fopen(fileout, "wb+");
+    if (!fp) {
+        fprintf(stderr, "Couldn't create file: %s", fileout);
+        exit(1);
+    }
+
+    fwrite(output, sizeof(uint16_t), size, fp);
+    fclose(fp);
+}
+
 int main(int argc, char* argv[])
 {
     if (argc != 2) {
@@ -245,19 +259,34 @@ int main(int argc, char* argv[])
         exit(1);
     }
 
-    const char* filename = argv[1];
-    char* buffer = readtext(filename);
+    const char* filein = argv[1];
+    char* buffer = readtext(filein);
 
     source_program_t* program = source_program_read(buffer);
     uint16_t output[program->numlines];
-    instr_t instr;
+
+    instr_t instr = empty;
     int i = 0;
-    for (int i = 0; i < program->numlines; i++) {
+    for (; i < program->numlines; i++) {
         assemble_parse_line(&instr, program->lines[i]);
         output[i] = assemble_instr(&instr);
+        // printf("0x%.4x\n", output[i]);
         dump_instr(output[i], &instr);
     }
+    size_t size = i;
     source_program_free(program);
+
+    // Save compiled code to bin file.
+    char fileout[256];
+    char *pos = strstr(filein, ".chip8");
+    if (pos != NULL) {
+        strncpy(fileout, filein, pos - filein);
+        strcpy(fileout + (pos - filein), ".bin");
+        fileout[pos - filein + 4] = '\0';
+    } else {
+        strcpy(fileout, ".bin");
+    }
+    dump_bytecode(fileout, output, size);
 
     return 0;
 }

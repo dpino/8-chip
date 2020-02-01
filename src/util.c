@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 #define BUFFER_STRIDE 4096
 
@@ -42,17 +43,17 @@ unsigned char* readtext(const char* filename)
     return ret;
 }
 
-unsigned char* readbin(const char* filename)
+size_t readbin(uint8_t *buffer, const char* filename)
 {
     FILE* fp = fopen(filename, "rb");
     if (!fp) {
-        fprintf(stderr, "Couldn't open file: %s\n", filename);
-        exit(1);
+        printf("Couldn't open file\n");
+        return 0;
     }
 
-    size_t size = filesize(fp);
-    unsigned char* ret = readfile(fp, size + 1);
-    ret[size] = '\0';
+    long size = filesize(fp);
+    fread(buffer, sizeof(uint8_t), size, fp);
+    fclose(fp);
 
-    return ret;
+    return size;
 }

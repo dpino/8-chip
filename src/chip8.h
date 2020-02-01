@@ -19,6 +19,7 @@
 #define WINDOW_HEIGHT (VIDEO_HEIGHT * PIXEL_SIZE)
 #define NUM_STACK_FRAMES 16
 #define PC_START 0x200
+#define NUM_INSTRUCTIONS 35
 
 typedef union {
     struct {
