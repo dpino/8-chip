@@ -79,6 +79,14 @@ void chip8_initialize(chip8_t *vm)
     SDL_CreateWindowAndRenderer(WINDOW_WIDTH, WINDOW_HEIGHT, 0, &vm->window, &vm->renderer);
     SDL_SetRenderDrawColor(vm->renderer, 0, 0, 0, 255);
     SDL_RenderClear(vm->renderer);
+
+    // Set keyboard as non-buffered input.
+    struct termios info;
+    tcgetattr(0, &info);          /* get current terminal attirbutes; 0 is the file descriptor for stdin */
+    info.c_lflag &= ~ICANON;      /* disable canonical mode */
+    info.c_cc[VMIN] = 1;          /* wait until at least one keystroke available */
+    info.c_cc[VTIME] = 0;         /* no timeout */
+    tcsetattr(0, TCSANOW, &info); /* set immediately */
 }
 
 static void chip8_setRandomColor(chip8_t *vm)
