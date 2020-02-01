@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "util.h"
+#define BUFFER_STRIDE 4096
 
 static long filesize(FILE *fp)
 {
@@ -50,5 +50,9 @@ unsigned char* readbin(const char* filename)
         exit(1);
     }
 
-    return readfile(fp, filesize(fp));
+    size_t size = filesize(fp);
+    unsigned char* ret = readfile(fp, size + 1);
+    ret[size] = '\0';
+
+    return ret;
 }

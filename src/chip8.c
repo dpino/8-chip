@@ -130,7 +130,7 @@ void chip8_renderScreen(chip8_t *vm)
     SDL_RenderPresent(vm->renderer);
 }
 
-static inline uint16_t address(union opcode_t opcode)
+static inline uint16_t address(opcode_t opcode)
 {
     return opcode.value & 0xFFF;
 }

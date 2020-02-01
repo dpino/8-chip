@@ -1,7 +1,6 @@
 #pragma once
 
-#define BUFFER_STRIDE 4096
+#include <stdint.h>
 
 unsigned char* readtext(const char* filename);
 unsigned char* readbin(const char* filename);
-unsigned char* readfile2(const char* filename);
