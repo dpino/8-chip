@@ -132,6 +132,7 @@ static inline void cls(chip8_t *vm) {
 }
 // 00EE: Return from a subroutine.
 static inline void ret(chip8_t *vm) {
+    assert(vm->SP >= 0 && vm->SP < NUM_STACK_FRAMES);
     vm->PC = vm->stack[vm->SP];
     vm->SP--;
 }
@@ -351,8 +352,9 @@ static inline void draw(chip8_t *vm) {
     vm->PC += 2;
 }
 
+// EX9E: Skips the next instruction if the key stored in VX is pressed.
 static inline void jkey(chip8_t *vm) {
-    const uint8_t x = vm->opcode.hi & 0xf;
+    const uint8_t x = vm->opcode.hi & 0x0F;
 
     if (vm->keycode == vm->V[x]) {
         vm->PC += 2;
@@ -360,8 +362,9 @@ static inline void jkey(chip8_t *vm) {
     vm->PC += 2;
 }
 
+// EXA1: Skips the next instruction if the key stored in VX isn't pressed.
 static inline void jnkey(chip8_t *vm) {
-    const uint8_t x = vm->opcode.hi & 0xf;
+    const uint8_t x = vm->opcode.hi & 0x0F;
 
     if (vm->keycode != vm->V[x]) {
         vm->PC += 2;
@@ -371,42 +374,46 @@ static inline void jnkey(chip8_t *vm) {
 
 // Sets VX to the value of the delay timer.
 static inline void getdelay(chip8_t *vm) {
-    const uint8_t x = vm->opcode.hi & 0xf;
+    const uint8_t x = vm->opcode.hi & 0x0F;
 
     vm->V[x] = vm->delay_timer;
+    vm->PC += 2;
 }
 
 // A key press is awaited, and then stored in VX. (Blocking Operation. All instruction
 // halted until next key event).
 static inline void waitkey(chip8_t *vm) {
-    const uint8_t x = vm->opcode.hi & 0xf;
+    const uint8_t x = vm->opcode.hi & 0x0F;
 
-    unsigned char c = fgetc(stdin);
-    vm->V[x] = c;
+    vm->V[x] = getchar();;
+    vm->PC += 2;
 }
 
 // Sets the delay timer to VX.
 static inline void setdelay(chip8_t *vm) {
-    const uint8_t x = vm->opcode.hi & 0xf;
+    const uint8_t x = vm->opcode.hi & 0x0F;
 
     vm->delay_timer = vm->V[x];
+    vm->PC += 2;
 }
 
 // Sets the sound timer to VX.
 static inline void setsound(chip8_t *vm) {
-    const uint8_t x = vm->opcode.hi & 0xf;
+    const uint8_t x = vm->opcode.hi & 0x0F;
 
     vm->sound_timer = vm->V[x];
+    vm->PC += 2;
 }
 
 // Adds VX to I. VF is set to 1 when there is a range overflow (I+VX>0xFFF), and to
 // 0 when there isn't.
 static inline void addi(chip8_t *vm) {
-    const uint8_t x = vm->opcode.hi & 0xf;
+    const uint8_t x = vm->opcode.hi & 0x0F;
 
     uint8_t old = vm->I;
-    vm->I += vm->V[x];
+    vm->I = (vm->I + vm->V[x]) & 0xFFF;
     vm->V[0xF] = (old > vm->I) ? 1 : 0;
+    vm->PC += 2;
 }
 
 // Sets I to the location of the sprite for the character in VX. Characters 0x0-0xF
@@ -421,33 +428,36 @@ static inline void spritei(chip8_t *vm) {
 // of VX, place the hundreds digit in memory at location in I, the tens digit at
 // location I+1, and the ones digit at location I+2.)
 static inline void bcd(chip8_t *vm) {
-    const uint8_t x = vm->opcode.hi & 0xf;
+    const uint8_t x = vm->opcode.hi & 0x0F;
 
     uint8_t value = vm->V[x];
     vm->ram[vm->I + 0] = value / 100;
     vm->ram[vm->I + 1] = (value / 10) % 10;
     vm->ram[vm->I + 2] = (value % 100) % 10;
+    vm->PC += 2;
 }
 
 // Stores V0 to VX (including VX) in memory starting at address I. The offset from I
 // is increased by 1 for each value written, but I itself is left unmodified.
 static inline void push(chip8_t *vm) {
-    const uint8_t x = vm->opcode.hi & 0xf;
+    const uint8_t x = vm->opcode.hi & 0x0F;
 
     for (uint8_t i = 0; i <= x; i++) {
         vm->ram[vm->I + i] = vm->V[i];
     }
+    vm->PC += 2;
 }
 
 // Fills V0 to VX (including VX) with values from memory starting at address I. The
 // offset from I is increased by 1 for each value written, but I itself is left
 // unmodified.
 static inline void pop(chip8_t *vm) {
-    const uint8_t x = vm->opcode.hi & 0xf;
+    const uint8_t x = vm->opcode.hi & 0x0F;
 
     for (uint8_t i = 0; i <= x; i++) {
         vm->V[i] = vm->ram[vm->I + i];
     }
+    vm->PC += 2;
 }
 
 void chip8_emulateCycle(chip8_t *vm)
@@ -553,7 +563,7 @@ void chip8_emulateCycle(chip8_t *vm)
                       } else if (lo == 0x65) {
                           pop(vm);
                       } else {
-                          // Unrecheable.
+                          // Unreachable.
                       }
                   }
                   break;
@@ -568,6 +578,16 @@ void selftest()
     chip8_t vm;
 
     printf("chip8: selftest\n");
+
+    printf("Test ret:\t");
+    {
+        chip8_initialize(&vm);
+        vm.SP = 0;
+        vm.stack[vm.SP] = 0x0AAA;
+        ret(&vm);
+        assert(vm.PC == 0xAAA);
+        printf("Ok\n");
+    }
 
     printf("Test jmp:\t");
     {
@@ -634,45 +654,6 @@ void selftest()
         vm.V[0] = 1;
         add(&vm);
         assert(vm.PC == 0x202 && vm.V[0] == 0xFF);
-        printf("Ok\n");
-    }
-
-    printf("Test jneq:\t");
-    {
-        chip8_initialize(&vm);
-        vm.opcode.value = 0x9010;
-        vm.V[0] = 0xAA;
-        vm.V[1] = 0xAB;
-        jneq(&vm);
-        assert(vm.PC == 0x204);
-        printf("Ok\n");
-    }
-
-    printf("Test seti:\t");
-    {
-        chip8_initialize(&vm);
-        vm.opcode.value = 0xABBB;
-        seti(&vm);
-        assert(vm.PC == 0x202 && vm.I == 0xBBB);
-        printf("Ok\n");
-    }
-
-    printf("Test jmpv0:\t");
-    {
-        chip8_initialize(&vm);
-        vm.opcode.value = 0xBC00;
-        vm.V[0] = 0xCC;
-        jmpv0(&vm);
-        assert(vm.PC == 0xCCC);
-        printf("Ok\n");
-    }
-
-    printf("Test rrand:\t");
-    {
-        chip8_initialize(&vm);
-        vm.opcode.value = 0xC0FF;
-        rrand(&vm);
-        assert(vm.PC == 0x202 && vm.V[0] > 0 && vm.V[0] <= 0xFF);
         printf("Ok\n");
     }
 
@@ -770,6 +751,175 @@ void selftest()
         vm.V[0] = 0xFF;
         shl(&vm);
         assert(vm.PC == 0x202 && vm.V[0] == 0xFE);
+        printf("Ok\n");
+    }
+
+    printf("Test jneq:\t");
+    {
+        chip8_initialize(&vm);
+        vm.opcode.value = 0x9010;
+        vm.V[0] = 0xAA;
+        vm.V[1] = 0xAB;
+        jneq(&vm);
+        assert(vm.PC == 0x204);
+        printf("Ok\n");
+    }
+
+    printf("Test seti:\t");
+    {
+        chip8_initialize(&vm);
+        vm.opcode.value = 0xABBB;
+        seti(&vm);
+        assert(vm.PC == 0x202 && vm.I == 0xBBB);
+        printf("Ok\n");
+    }
+
+    printf("Test jmpv0:\t");
+    {
+        chip8_initialize(&vm);
+        vm.opcode.value = 0xBC00;
+        vm.V[0] = 0xCC;
+        jmpv0(&vm);
+        assert(vm.PC == 0xCCC);
+        printf("Ok\n");
+    }
+
+    printf("Test rrand:\t");
+    {
+        chip8_initialize(&vm);
+        vm.opcode.value = 0xC0FF;
+        rrand(&vm);
+        assert(vm.PC == 0x202 && vm.V[0] > 0 && vm.V[0] <= 0xFF);
+        printf("Ok\n");
+    }
+
+    printf("Test jkey:\t");
+    {
+        chip8_initialize(&vm);
+        vm.opcode.value = 0xE09E;
+        vm.keycode = 'A';
+        vm.V[0] = 'A';
+        jkey(&vm);
+        assert(vm.PC == 0x204 && vm.keycode == vm.V[0]);
+        printf("Ok\n");
+    }
+
+    printf("Test jnkey:\t");
+    {
+        chip8_initialize(&vm);
+        vm.opcode.value = 0xE0A1;
+        vm.keycode = 'A';
+        vm.V[0] = 'B';
+        jnkey(&vm);
+        assert(vm.PC == 0x204 && vm.keycode != vm.V[0]);
+        printf("Ok\n");
+    }
+
+    printf("Test getdelay:\t");
+    {
+        chip8_initialize(&vm);
+        vm.opcode.value = 0xF007;
+        vm.delay_timer = 255;
+        getdelay(&vm);
+        assert(vm.PC == 0x202 && vm.V[0] == 255);
+        printf("Ok\n");
+    }
+
+    /*
+    printf("Test waitkey:\t");
+    {
+        chip8_initialize(&vm);
+        vm.opcode.value = 0xF00A;
+        waitkey(&vm);
+        assert(vm.PC == 0x202);
+        printf("Ok\n");
+    }
+    */
+
+    printf("Test setdelay:\t");
+    {
+        chip8_initialize(&vm);
+        vm.opcode.value = 0xF015;
+        vm.V[0] = 255;
+        setdelay(&vm);
+        assert(vm.PC == 0x202 && vm.delay_timer == 255);
+        printf("Ok\n");
+    }
+
+    printf("Test setsound:\t");
+    {
+        chip8_initialize(&vm);
+        vm.opcode.value = 0xF018;
+        vm.V[0] = 255;
+        setsound(&vm);
+        assert(vm.PC == 0x202 && vm.sound_timer == 255);
+        printf("Ok\n");
+    }
+
+    printf("Test addi:\t");
+    {
+        chip8_initialize(&vm);
+        vm.opcode.value = 0xF01E;
+        vm.V[0] = 0x1;
+        vm.I = 0x0FFF;
+        addi(&vm);
+        assert(vm.PC == 0x202 && vm.I == 0x0 && vm.V[0xF] == 1);
+        printf("Ok\n");
+    }
+
+    /*
+    printf("Test spritei:\t");
+    {
+        chip8_initialize(&vm);
+        vm.opcode.value = 0xF029;
+        spritei(&vm);
+        assert(vm.PC == 0x202);
+        printf("Ok\n");
+    }
+    */
+
+    printf("Test bcd:\t");
+    {
+        chip8_initialize(&vm);
+        vm.opcode.value = 0xF033;
+        vm.V[0] = 255;
+        bcd(&vm);
+        assert(vm.PC == 0x202 &&
+            vm.ram[vm.I] == 2 &&
+            vm.ram[vm.I + 1] == 5 &&
+            vm.ram[vm.I + 2] == 5);
+        printf("Ok\n");
+    }
+
+    printf("Test push:\t");
+    {
+        chip8_initialize(&vm);
+        vm.opcode.value = 0xFF55;
+        vm.I = 0;
+        for (int i = 0; i < 16; i++) {
+            vm.V[i] = i;
+        }
+        push(&vm);
+        assert(vm.PC == 0x202);
+        for (int i = 0; i < 16; i++) {
+            assert(vm.ram[vm.I + i] == i);
+        }
+        printf("Ok\n");
+    }
+
+    printf("Test pop:\t");
+    {
+        chip8_initialize(&vm);
+        vm.opcode.value = 0xFF65;
+        vm.I = 0;
+        for (int i = 0; i < 16; i++) {
+            vm.ram[vm.I + i] = i;
+        }
+        pop(&vm);
+        assert(vm.PC == 0x202);
+        for (int i = 0; i < 16; i++) {
+            assert(vm.V[i] == i);
+        }
         printf("Ok\n");
     }
 }
