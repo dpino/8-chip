@@ -1,2 +1,7 @@
-chip8
+chip8-vm
+chip8-asm
+chip8-disasm
+*.rom
+*.bin
+*.chip8
 roms/
