@@ -151,6 +151,14 @@ void assembler_parse_line(instr_t *instr, char *l)
     }
 }
 
+uint16_t tohex(const char* str)
+{
+    if (*str == '#' || *str == 'v') {
+        str++;
+    }
+    return strtoul(str, NULL, 16);
+}
+
 uint16_t assembler_compile_instruction(instr_t* instr)
 {
     uint16_t opcode;
@@ -179,7 +187,7 @@ uint16_t assembler_compile_instruction(instr_t* instr)
         case 0x2000: // CALL.
         case 0xA000: // LOADI.
         case 0xB000: // JUMPI
-            opcode |= strtoul(instr->op1, NULL, 16);
+            opcode |= tohex(instr->op1);
         break;
 
         case 0x3000: // SKE.
@@ -187,7 +195,7 @@ uint16_t assembler_compile_instruction(instr_t* instr)
         case 0x6000: // LOAD.
         case 0x7000: // ADD.
         case 0xC000: // RAND.
-            opcode |= strtoul(instr->op1, NULL, 16) << 8 | strtoul(instr->op2, NULL, 16);
+            opcode |= tohex(instr->op1) << 8 | tohex(instr->op2);
         break;
 
         case 0x5000: // SKRE.
@@ -200,7 +208,7 @@ uint16_t assembler_compile_instruction(instr_t* instr)
         case 0x8006: // SHR.
         case 0x800E: // SHL.
         case 0x9000: { // SKRNE.
-            opcode |= strtoul(instr->op1, NULL, 16) << 8 | strtoul(instr->op2, NULL, 16) << 4;
+            opcode |= tohex(instr->op1) << 8 | tohex(instr->op2) << 4;
         }
         break;
 
@@ -215,11 +223,12 @@ uint16_t assembler_compile_instruction(instr_t* instr)
         case 0xF033: // BCD.
         case 0xF055: // STOR.
         case 0xF065: // READ.
-            opcode |= strtoul(instr->op1, NULL, 16) && 0x0F << 8;
+            opcode |= tohex(instr->op1) & 0x0F << 8;
         break;
 
-        case 0xD000: // DRAW.
-            fprintf(stderr, "NYI: DRAW\n");
+        case 0xD000: {// DRAW.
+            opcode = 0xD000 | tohex(instr->op1) << 8 | tohex(instr->op2) << 4 | tohex(instr->op3);
+        }
         break;
     }
     return bswap(opcode);

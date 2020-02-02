@@ -105,7 +105,7 @@ static void print_instr(uint16_t value)
         }
     } else if (num_operands == 3) {
             uint8_t op1 = opcode.hi & 0xf;
-            uint8_t op2 = opcode.lo & 0xf0 >> 4;
+            uint8_t op2 = opcode.lo >> 4;
             uint8_t op3 = opcode.lo & 0xf;
             sprintf(line, "%s #%x, #%x, 0x%.2x", keyword, op1, op2, op3);
     } else {
