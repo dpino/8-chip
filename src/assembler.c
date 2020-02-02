@@ -6,6 +6,7 @@
 #include "chip8.h"
 #include "util.h"
 
+#define DEBUG 0
 #define NUM_INSTRUCTIONS 35
 
 typedef struct {
@@ -13,12 +14,11 @@ typedef struct {
     char **lines;
 } source_program_t;
 
-
 typedef struct {
     char keyword[8];
-    char op1[4];
-    char op2[2];
-    char op3[2];
+    char op1[6];
+    char op2[6];
+    char op3[6];
     uint8_t numops;
 } instr_t;
 
@@ -67,7 +67,7 @@ void source_program_free(source_program_t* p)
 
 static void parsing_error(const char* errmsg, const char* line, int offset)
 {
-    fprintf(stderr, "%s: %s", errmsg, line);
+    fprintf(stderr, "%s: %s\n", errmsg, line);
     fprintf(stdout, "%*c\n", (int) strlen(errmsg) + 2 + offset, '^');
     exit(1);
 }
@@ -76,10 +76,14 @@ void assemble_parse_line(instr_t *instr, char *l)
 {
     *instr = empty;
 
+    if (DEBUG) {
+        printf("l: %s\n", l);
+    }
+    int numops = 0;
+
     // Find end of line.
     char* end = strchr(l, ';') ? strchr(l, ';') : strchr(l, '\0');
     char* pos = l;
-    int numops = 0;
 
     // Parse keyword.
     char* space = strchr(pos, ' ') ? strchr(l, ' ') : end;
@@ -93,11 +97,11 @@ void assemble_parse_line(instr_t *instr, char *l)
 
     // Parse operands.
     if (space < end) {
-        pos = space;
+        pos = space + 1;
         while (*pos == ' ') pos++;
         char* comma = strchr(pos, ',') ? strchr(pos, ',') : end;
         const size_t len = comma - pos;
-        if (len > 4) {
+        if (len > 6) {
             parsing_error("Error: Operand too long", l, pos - l);
         }
         strncpy(instr->op1, pos, len);
@@ -108,7 +112,7 @@ void assemble_parse_line(instr_t *instr, char *l)
             while (*pos == ' ') pos++;
             char* comma = strchr(pos, ',') ? strchr(pos, ',') : end;
             const size_t len = comma - pos;
-            if (len > 2) {
+            if (len > 6) {
                 parsing_error("Error: Operand too long", l, pos - l);
             }
             strncpy(instr->op2, pos, len);
@@ -118,7 +122,7 @@ void assemble_parse_line(instr_t *instr, char *l)
                 pos = comma + 1;
                 while (*pos == ' ') pos++;
                 const size_t len = end - pos;
-                if (len > 2) {
+                if (len > 6) {
                     parsing_error("Error: Operand too long", l, pos - l);
                 }
                 strncpy(instr->op3, pos, len);
