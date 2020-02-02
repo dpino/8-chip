@@ -240,7 +240,7 @@ void dump_instr(uint16_t opcode, const instr_t* instr)
     printf("}\n");
 }
 
-static void dump_bytecode(const char* fileout, uint16_t* output, size_t size)
+static void write_to_file(const char* fileout, uint16_t* output, size_t size)
 {
     FILE* fp = fopen(fileout, "wb+");
     if (!fp) {
@@ -286,7 +286,7 @@ int main(int argc, char* argv[])
     } else {
         strcpy(fileout, ".bin");
     }
-    dump_bytecode(fileout, output, size);
+    write_to_file(fileout, output, size);
 
     return 0;
 }

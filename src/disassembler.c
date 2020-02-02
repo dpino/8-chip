@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <assert.h>
+#include <arpa/inet.h>
 
 #include "chip8.h"
 #include "util.h"
@@ -73,44 +74,57 @@ static void print_instr(uint16_t value)
     }
 
     uint8_t pos = lookup_operand(ret.value);
+    if (pos == 255) {
+        fprintf(stderr, "Unknown instruction: 0x%.4x\n", ret.value);
+        return;
+    }
     const char* keyword = get_keyword(pos);
     uint8_t num_operands = get_num_operands_per_instruction(pos);
 
-    printf("0x%x\n", opcode.value);
-    fprintf(stdout, "%s ", keyword);
+    char line[80];
+    sprintf(line, "%s ", keyword);
     if (num_operands == 0) {
-        return;
+        // nothing.
     } else if (num_operands == 1) {
         uint16_t op1;
         if (msb == 0 | msb == 1 || msb == 2 || msb == 0xa || msb == 0xb) {
             op1 = opcode.value & 0xFFF;
-            printf("0x%.3x\n", op1);
+            sprintf(line, "0x%.3x", op1);
         } else {
             op1 = opcode.hi & 0x0F;
-            printf("#%x\n", op1);
+            sprintf(line, "#%x", op1);
         }
     } else if (num_operands == 2) {
         uint8_t op1, op2;
         if (msb == 3 || msb == 4 || msb == 6 || msb == 7) {
-            op1 = opcode.hi >> 4;
+            op1 = opcode.hi & 0xf;
             op2 = opcode.lo;
-            printf("#%x, 0x%.2x\n", op1, op2);
+            sprintf(line, "#%x, 0x%.2x", op1, op2);
         } else {
             op1 = opcode.hi & 0xf;
             op2 = (opcode.lo & 0xf0) >> 4;
-            printf("#%x, #%x\n", op1, op2);
+            sprintf(line, "#%x, #%x", op1, op2);
         }
     } else if (num_operands == 3) {
-            uint8_t op1 = opcode.hi & 0xf;
-            uint8_t op2 = opcode.lo & 0xf0 >> 4;
-            uint8_t op3 = opcode.lo & 0xf;
-            printf("#%.2x, #%.2x, 0x%.2x\n", op1, op2, op3);
+           uint8_t op1 = opcode.hi & 0xf;
+        uint8_t op2 = opcode.lo & 0xf0 >> 4;
+        uint8_t op3 = opcode.lo & 0xf;
+        sprintf(line, "#%x, #%x, 0x%.2x", op1, op2, op3);
     } else {
         // Unreachable.
     }
 
-    printf("%.4x (hi: %.2x, lo: %.2x), msb: 0x%x, ret: %.4x\n", opcode.value, opcode.hi, opcode.lo, msb, ret.value);
-    printf("0x%.4x (%s)\n", opcode.value, keyword);
+    // Adjust tabs.
+    char tabs[4];
+    if (strlen(line) < 9) {
+        strcpy(tabs, "\t\t\t");
+    } else {
+        strcpy(tabs, "\t\t");
+    }
+
+    // Print instruction plus comment with the opcode.
+    printf("%s", line);
+    printf("%s; 0x%x\n", tabs, opcode.value);
 }
 
 void selftest() {
@@ -162,11 +176,11 @@ int main(int argc, char* argv[])
     uint8_t buffer[4096];
     size_t size = readbin(buffer, filename);
 
+
     uint8_t *ptr = buffer, *end = buffer + size;
     while (ptr != end) {
         print_addr(PC_START + (ptr - buffer));
-        print_instr(((uint16_t*) ptr)[0]);
-        // printf("0x%.4x\n", ((uint16_t*) ptr)[0]);
+        print_instr(htons(((uint16_t*) ptr)[0]));
         ptr += 2;
     }
 
