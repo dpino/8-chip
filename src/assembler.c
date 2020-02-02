@@ -65,14 +65,14 @@ void source_program_free(source_program_t* p)
     free(p);
 }
 
-static void parsing_error(const char* errmsg, const char* line, int offset)
+void parsing_error(const char* errmsg, const char* line, int offset)
 {
     fprintf(stderr, "%s: %s\n", errmsg, line);
     fprintf(stdout, "%*c\n", (int) strlen(errmsg) + 2 + offset, '^');
     exit(1);
 }
 
-void assemble_parse_line(instr_t *instr, char *l)
+void assembler_parse_line(instr_t *instr, char *l)
 {
     *instr = empty;
 
@@ -151,14 +151,13 @@ void assemble_parse_line(instr_t *instr, char *l)
     }
 }
 
-uint16_t assemble_instr(instr_t* instr)
+uint16_t assembler_compile_instruction(instr_t* instr)
 {
     uint16_t opcode;
 
     // Find opcode.
     int i = 0;
     while (i < NUM_INSTRUCTIONS) {
-        // printf("%s: %s\n", instructions[i], instr->keyword);
         if (!strcmp(instr->keyword, instructions[i])) {
             opcode = opcodes[i];
             break;
@@ -170,7 +169,6 @@ uint16_t assemble_instr(instr_t* instr)
         exit(1);
     }
 
-    // printf("assemble_instr\n");
     switch (opcode) {
         case 0x00E0: // CLS.
         case 0x00EE: // RET.
@@ -189,7 +187,7 @@ uint16_t assemble_instr(instr_t* instr)
         case 0x6000: // LOAD.
         case 0x7000: // ADD.
         case 0xC000: // RAND.
-            opcode |= strtoul(instr->op1, NULL, 16) && 0xFF << 8 | strtoul(instr->op2, NULL, 16);
+            opcode |= strtoul(instr->op1, NULL, 16) << 8 | strtoul(instr->op2, NULL, 16);
         break;
 
         case 0x5000: // SKRE.
@@ -202,8 +200,7 @@ uint16_t assemble_instr(instr_t* instr)
         case 0x8006: // SHR.
         case 0x800E: // SHL.
         case 0x9000: { // SKRNE.
-              opcode |= strtoul(instr->op1, NULL, 16) << 8 | strtoul(instr->op2, NULL, 16) << 4;
-              // printf("%.4x, %s, %s (%ld)\n", opcode, instr->op1, instr->op2, strtoul(instr->op2, NULL, 16) << 4);
+            opcode |= strtoul(instr->op1, NULL, 16) << 8 | strtoul(instr->op2, NULL, 16) << 4;
         }
         break;
 
@@ -225,10 +222,10 @@ uint16_t assemble_instr(instr_t* instr)
             fprintf(stderr, "NYI: DRAW\n");
         break;
     }
-    return opcode;
+    return bswap(opcode);
 }
 
-void dump_instr(uint16_t opcode, const instr_t* instr)
+void assembler_dump_instruction(uint16_t opcode, const instr_t* instr)
 {
     printf("0x%.4x: ", opcode);
     printf("{'%s'", instr->keyword);
@@ -244,7 +241,23 @@ void dump_instr(uint16_t opcode, const instr_t* instr)
     printf("}\n");
 }
 
-static void write_to_file(const char* fileout, uint16_t* output, size_t size)
+size_t assembler_compile_program(uint16_t *output, source_program_t* program)
+{
+    instr_t instr = empty;
+    int i = 0;
+    for (; i < program->numlines; i++) {
+        assembler_parse_line(&instr, program->lines[i]);
+        output[i] = assembler_compile_instruction(&instr);
+        if (DEBUG) {
+            assembler_dump_instruction(output[i], &instr);
+        }
+    }
+    source_program_free(program);
+
+    return i;
+}
+
+void assembler_write_to_file(const char* fileout, uint16_t* output, size_t size)
 {
     FILE* fp = fopen(fileout, "wb+");
     if (!fp) {
@@ -258,39 +271,32 @@ static void write_to_file(const char* fileout, uint16_t* output, size_t size)
 
 int main(int argc, char* argv[])
 {
-    if (argc != 2) {
-        fprintf(stderr, "Usage: asm <filename>\n");
+    if (!(argc == 2 | argc == 3)) {
+        fprintf(stderr, "Usage: asm <filein> [<fileout>]\n");
         exit(1);
     }
 
     const char* filein = argv[1];
+    char fileout[256];
+    if (argc == 3) {
+        strcpy(fileout, argv[2]);
+    } else {
+        char *pos = strrchr(filein, '.');
+        if (pos != NULL) {
+            strncpy(fileout, filein, pos - filein);
+            strcpy(fileout + (pos - filein), ".rom");
+            fileout[pos - filein + 4] = '\0';
+        } else {
+            strcpy(fileout, ".rom");
+        }
+    }
+
     char* buffer = readtext(filein);
 
     source_program_t* program = source_program_read(buffer);
     uint16_t output[program->numlines];
-
-    instr_t instr = empty;
-    int i = 0;
-    for (; i < program->numlines; i++) {
-        assemble_parse_line(&instr, program->lines[i]);
-        output[i] = assemble_instr(&instr);
-        // printf("0x%.4x\n", output[i]);
-        dump_instr(output[i], &instr);
-    }
-    size_t size = i;
-    source_program_free(program);
-
-    // Save compiled code to bin file.
-    char fileout[256];
-    char *pos = strstr(filein, ".chip8");
-    if (pos != NULL) {
-        strncpy(fileout, filein, pos - filein);
-        strcpy(fileout + (pos - filein), ".bin");
-        fileout[pos - filein + 4] = '\0';
-    } else {
-        strcpy(fileout, ".bin");
-    }
-    write_to_file(fileout, output, size);
+    size_t size = assembler_compile_program(output, program);
+    assembler_write_to_file(fileout, output, size);
 
     return 0;
 }

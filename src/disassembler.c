@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <assert.h>
-#include <arpa/inet.h>
 
 #include "chip8.h"
 #include "util.h"
@@ -181,7 +180,7 @@ int main(int argc, char* argv[])
     uint8_t *ptr = buffer, *end = buffer + size;
     while (ptr != end) {
         print_addr(PC_START + (ptr - buffer));
-        print_instr(htons(((uint16_t*) ptr)[0]));
+        print_instr(bswap(((uint16_t*) ptr)[0]));
         ptr += 2;
     }
 

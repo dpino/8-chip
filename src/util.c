@@ -28,6 +28,14 @@ static unsigned char* readfile(FILE *fp, size_t size)
     return buffer;
 }
 
+uint16_t bswap(uint16_t value)
+{
+    uint8_t hi = value >> 8;
+    uint8_t lo = value & 0xff;
+
+    return lo << 8 | hi;
+}
+
 unsigned char* readtext(const char* filename)
 {
     FILE* fp = fopen(filename, "rt");
