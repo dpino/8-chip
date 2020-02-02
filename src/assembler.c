@@ -16,9 +16,14 @@ typedef struct {
 
 typedef struct {
     char keyword[8];
-    char op1[6];
-    char op2[6];
-    char op3[6];
+    union {
+        struct {
+            char op1[6];
+            char op2[6];
+            char op3[6];
+        };
+        char op[6][3];
+    };
     uint8_t numops;
 } instr_t;
 
@@ -72,67 +77,63 @@ void parsing_error(const char* errmsg, const char* line, int offset)
     exit(1);
 }
 
-void assembler_parse_line(instr_t *instr, char *l)
+static int eol(char c)
+{
+    return c == '\0' || c == ';';
+}
+
+static int next_token(char* dest, const char* src, int start, char* delim)
+{
+    char* ptr = (char*) (src + start);
+    int len;
+
+    // Skip whitespace.
+    while (*ptr == ' ') ptr++;
+    // Mark beginning of token here.
+    char* begin = ptr;
+    // Move forward while not finding delim character or end of string.
+    while (!eol(*ptr)) {
+        for (int i = 0; i < strlen(delim); i++) {
+            // printf("'%c' == '%c'\n", ptr[0], delim[i]);
+            if (ptr[0] == delim[i])
+                goto exit;
+        }
+        ptr++;
+    }
+    // Copy token.
+    exit:
+    len = ptr - begin;
+    strncpy(dest, begin, len);
+    dest[len] = '\0';
+    // Return distance between last position and beginning.
+    return ptr - (src + start);
+}
+
+void assembler_parse_line(instr_t *instr, const char *line)
 {
     *instr = empty;
 
     if (DEBUG) {
-        printf("l: %s\n", l);
-    }
-    int numops = 0;
-
-    // Find end of line.
-    char* end = strchr(l, ';') ? strchr(l, ';') : strchr(l, '\0');
-    char* pos = l;
-
-    // Parse keyword.
-    char* space = strchr(pos, ' ') ? strchr(l, ' ') : end;
-    if (space) {
-        const size_t len = space - pos;
-        if (len > 5) {
-            parsing_error("Error: Unrecognized keyword", l, 0);
-        }
-        strncpy(instr->keyword, pos, len);
+        printf("line: %s\n", line);
     }
 
-    // Parse operands.
-    if (space < end) {
-        pos = space + 1;
-        while (*pos == ' ') pos++;
-        char* comma = strchr(pos, ',') ? strchr(pos, ',') : end;
-        const size_t len = comma - pos;
-        if (len > 6) {
-            parsing_error("Error: Operand too long", l, pos - l);
-        }
-        strncpy(instr->op1, pos, len);
-        numops++;
+    char token[8];
+    int pos = 0, start = 0;
 
-        if (comma < end) {
-            pos = comma + 1;
-            while (*pos == ' ') pos++;
-            char* comma = strchr(pos, ',') ? strchr(pos, ',') : end;
-            const size_t len = comma - pos;
-            if (len > 6) {
-                parsing_error("Error: Operand too long", l, pos - l);
-            }
-            strncpy(instr->op2, pos, len);
-            numops++;
-
-            if (comma < end) {
-                pos = comma + 1;
-                while (*pos == ' ') pos++;
-                const size_t len = end - pos;
-                if (len > 6) {
-                    parsing_error("Error: Operand too long", l, pos - l);
-                }
-                strncpy(instr->op3, pos, len);
-                numops++;
-            }
-        }
+    pos += next_token(token, line, pos, " \t");
+    // Maybe address?
+    if (token[0] == '0' && token[1] == 'x') {
+        start = pos;
+        pos += next_token(token, line, pos, " \t");
     }
-    instr->numops = numops;
+    // Must be a keyword.
+    if (strlen(token) > 5) {
+        parsing_error("Error: Unrecognized keyword", line, pos);
+    }
+    strcpy(instr->keyword, token);
 
-    // Check is valid keyword.
+    // TODO: Verify keyword exists, otherwise return error.
+    /* Check is valid keyword.
     int i = 0;
     for (; i < NUM_INSTRUCTIONS; i++) {
         if (!strcmp(instr->keyword, instructions[i])) {
@@ -142,13 +143,29 @@ void assembler_parse_line(instr_t *instr, char *l)
     if (i == NUM_INSTRUCTIONS) {
         parsing_error("Error: Unrecognized keyword", l, 0);
     }
+    */
 
-    // Check number of operands.
-    if (num_operands_per_instruction[i] < instr->numops) {
-        parsing_error("Error: Too few operands", l, 0);
-    } else if (num_operands_per_instruction[i] < instr->numops) {
-        parsing_error("Error: Too many operands", l, 0);
+    // Parse operands.
+    int i = 0;
+    while (1) {
+        pos += next_token(token, line, pos, " \t,");
+        if (strlen(token) > 0) {
+            strcpy(instr->op[i++], token);
+        }
+        if (eol(line[pos]))
+            break;
+        pos++;
     }
+    instr->numops = i;
+
+    /*
+    // TODO: Check number of operands.
+    if (num_operands_per_instruction[i] < instr->numops) {
+        parsing_error("Error: Too few operands", line, start);
+    } else if (num_operands_per_instruction[i] < instr->numops) {
+        parsing_error("Error: Too many operands", line, start);
+    }
+    */
 }
 
 uint16_t tohex(const char* str)
@@ -278,8 +295,33 @@ void assembler_write_to_file(const char* fileout, uint16_t* output, size_t size)
     fclose(fp);
 }
 
+static void selftest()
+{
+    printf("selftest: \n");
+
+    char* line = "0x0200 LOAD #a, 0x02    ; 0x6a02";
+    char token[8];
+
+    int pos = 0;
+    while (1) {
+        pos += next_token(token, line, pos, " ,");
+        if (eol(line[pos]))
+            break;
+        printf("token: %s, pos: %d\n", token, pos);
+        pos++;
+    }
+    exit(0);
+}
+
 int main(int argc, char* argv[])
 {
+    if (argc > 1) {
+        for (int i = 0; i < argc; i++) {
+            if (!strcmp(argv[i], "-t")) {
+                selftest();
+            }
+        }
+    }
     if (!(argc == 2 | argc == 3)) {
         fprintf(stderr, "Usage: asm <filein> [<fileout>]\n");
         exit(1);
