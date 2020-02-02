@@ -82,34 +82,33 @@ static void print_instr(uint16_t value)
     uint8_t num_operands = get_num_operands_per_instruction(pos);
 
     char line[80];
-    sprintf(line, "%s ", keyword);
     if (num_operands == 0) {
-        // nothing.
+        sprintf(line, "%s ", keyword);
     } else if (num_operands == 1) {
         uint16_t op1;
         if (msb == 0 | msb == 1 || msb == 2 || msb == 0xa || msb == 0xb) {
             op1 = opcode.value & 0xFFF;
-            sprintf(line, "0x%.3x", op1);
+            sprintf(line, "%s 0x%.3x", keyword, op1);
         } else {
             op1 = opcode.hi & 0x0F;
-            sprintf(line, "#%x", op1);
+            sprintf(line, "%s #%x", keyword, op1);
         }
     } else if (num_operands == 2) {
         uint8_t op1, op2;
         if (msb == 3 || msb == 4 || msb == 6 || msb == 7) {
             op1 = opcode.hi & 0xf;
             op2 = opcode.lo;
-            sprintf(line, "#%x, 0x%.2x", op1, op2);
+            sprintf(line, "%s #%x, 0x%.2x",keyword, op1, op2);
         } else {
             op1 = opcode.hi & 0xf;
             op2 = (opcode.lo & 0xf0) >> 4;
-            sprintf(line, "#%x, #%x", op1, op2);
+            sprintf(line, "%s #%x, #%x", keyword, op1, op2);
         }
     } else if (num_operands == 3) {
-           uint8_t op1 = opcode.hi & 0xf;
-        uint8_t op2 = opcode.lo & 0xf0 >> 4;
-        uint8_t op3 = opcode.lo & 0xf;
-        sprintf(line, "#%x, #%x, 0x%.2x", op1, op2, op3);
+            uint8_t op1 = opcode.hi & 0xf;
+            uint8_t op2 = opcode.lo & 0xf0 >> 4;
+            uint8_t op3 = opcode.lo & 0xf;
+            sprintf(line, "%s #%x, #%x, 0x%.2x", keyword, op1, op2, op3);
     } else {
         // Unreachable.
     }
@@ -118,6 +117,8 @@ static void print_instr(uint16_t value)
     char tabs[4];
     if (strlen(line) < 9) {
         strcpy(tabs, "\t\t\t");
+    } else if (strlen(line) > 13) {
+        strcpy(tabs, "\t");
     } else {
         strcpy(tabs, "\t\t");
     }
