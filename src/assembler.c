@@ -348,6 +348,9 @@ int main(int argc, char* argv[])
     uint16_t output[program->numlines];
     size_t size = assembler_compile_program(output, program);
     assembler_write_to_file(fileout, output, size);
+    if (argc != 3) {
+        fprintf(stdout, "Generated: %s\n", fileout);
+    }
 
     return 0;
 }
