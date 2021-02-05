@@ -295,11 +295,8 @@ void assembler_write_to_file(const char* fileout, uint16_t* output, size_t size)
     fclose(fp);
 }
 
-static void selftest()
+void chip8_parse_line(const char* line)
 {
-    printf("selftest: \n");
-
-    char* line = "0x0200 LOAD #a, 0x02    ; 0x6a02";
     char token[8];
 
     int pos = 0;
@@ -310,6 +307,14 @@ static void selftest()
         printf("token: %s, pos: %d\n", token, pos);
         pos++;
     }
+}
+
+static void selftest()
+{
+    printf("selftest: \n");
+
+    char* line = "0x0200 LOAD #a, 0x02    ; 0x6a02";
+    chip8_parse_line(line);
     exit(0);
 }
 
