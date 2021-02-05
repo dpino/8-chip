@@ -295,18 +295,46 @@ void assembler_write_to_file(const char* fileout, uint16_t* output, size_t size)
     fclose(fp);
 }
 
-void chip8_parse_line(const char* line)
+char** chip8_parse_line(const char* line)
 {
-    char token[8];
+    const size_t token_size = 8;
+    const size_t instr_size = 4;
 
-    int pos = 0;
+    char token[token_size];
+    char** ret = (char**) calloc(instr_size + 1, sizeof(char*));
+
+    int pos = 0, i = 0;
     while (1) {
         pos += next_token(token, line, pos, " ,");
         if (eol(line[pos]))
             break;
-        printf("token: %s, pos: %d\n", token, pos);
+        ret[i] = (char*) calloc(strlen(token), sizeof(char));
+        strcpy(ret[i++], token);
         pos++;
     }
+    ret[i] = NULL;
+    return ret;
+}
+
+static void print_instr(char* instr[])
+{
+    printf("{");
+    for (char** ptr = instr; *ptr; ptr++) {
+        printf("%s", *ptr);
+        if (*(ptr + 1)) {
+            printf(", ");
+        }
+    }
+    printf("}");
+    printf("\n");
+}
+
+static void free_instr(char* instr[])
+{
+    for (char** ptr = instr; *ptr; ptr++) {
+        free(*ptr);
+    }
+    free(instr);
 }
 
 static void selftest()
@@ -314,7 +342,11 @@ static void selftest()
     printf("selftest: \n");
 
     char* line = "0x0200 LOAD #a, 0x02    ; 0x6a02";
-    chip8_parse_line(line);
+    printf("%s\n", line);
+    char** instr = chip8_parse_line(line);
+    print_instr(instr);
+    free_instr(instr);
+
     exit(0);
 }
 
