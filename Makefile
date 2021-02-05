@@ -6,4 +6,4 @@ all:
 	gcc src/disassembler.c src/util.c -o chip8-disasm ${SDL2}
 
 clean:
-	rm -Rf chip8
+	rm -Rf chip8-vm chip8-asm chip8-disasm
