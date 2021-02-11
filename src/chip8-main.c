@@ -10,8 +10,6 @@
 
 #include "chip8-vm.h"
 
-#define MSB(val) ((val & 0xF0) >> 4)
-
 int main(int argc, char* argv[])
 {
     SDL_Event event;
