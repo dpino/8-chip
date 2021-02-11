@@ -6,11 +6,11 @@
 size_t lookup_instruction(const char* name)
 {
     size_t i = 0;
-    for (; i < instructions_size; i++) {
+    for (; i < NUM_INSTRUCTIONS; i++) {
         if (!strcmp(name, instructions[i]))
             break;
     }
-    if (i == instructions_size) {
+    if (i == NUM_INSTRUCTIONS) {
         fprintf(stderr, "Couldn't find instruction: %s\n", name);
         exit(1);
     }

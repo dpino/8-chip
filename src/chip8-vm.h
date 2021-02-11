@@ -19,7 +19,6 @@
 #define WINDOW_HEIGHT (VIDEO_HEIGHT * PIXEL_SIZE)
 #define NUM_STACK_FRAMES 16
 #define PC_START 0x200
-#define NUM_INSTRUCTIONS 35
 
 #define MSB(val) ((val & 0xF0) >> 4)
 
@@ -50,7 +49,7 @@ typedef struct {
 
 extern const uint16_t opcodes[];
 extern const char* instructions[];
-extern const size_t instructions_size;
+extern const size_t NUM_INSTRUCTIONS;
 extern const uint8_t num_operands_per_instruction[];
 
 void chip8_emulateCycle(chip8_t *vm);

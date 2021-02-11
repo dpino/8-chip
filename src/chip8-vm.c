@@ -45,7 +45,7 @@ const char* instructions[] = {
     "SKPR", "SKUP" , "MOVED", "KEYD", "LOADD", "LOADS", "ADDI", "LDSPR",
     "BCD" , "PUSH" , "POP"
 };
-const size_t instructions_size = sizeof(instructions) / sizeof(instructions[0]);
+const size_t NUM_INSTRUCTIONS = sizeof(instructions) / sizeof(instructions[0]);
 
 const uint8_t num_operands_per_instruction[] = {
     1, 0, 0, 1, 1, 2, 2, 2,

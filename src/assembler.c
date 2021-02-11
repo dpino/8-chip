@@ -7,7 +7,6 @@
 #include "util.h"
 
 #define DEBUG 0
-#define NUM_INSTRUCTIONS 35
 
 typedef struct {
     uint32_t numlines;
