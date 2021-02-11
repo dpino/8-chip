@@ -16,13 +16,6 @@ int main(int argc, char* argv[])
     SDL_Renderer *renderer;
     SDL_Window *window;
 
-    for (int i = 0; i < argc; i++) {
-        if (!strcmp(argv[i], "-t")) {
-            // selftest();
-            exit(0);
-        }
-    }
-
     chip8_t vm;
 
     chip8_initialize(&vm);
