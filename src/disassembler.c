@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include <assert.h>
 
-#include "chip8.h"
+#include "chip8-vm.h"
 #include "util.h"
 
 int lookup_operand(uint16_t opcode)

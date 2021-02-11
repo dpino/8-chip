@@ -21,6 +21,8 @@
 #define PC_START 0x200
 #define NUM_INSTRUCTIONS 35
 
+#define MSB(val) ((val & 0xF0) >> 4)
+
 typedef union {
     struct {
         uint8_t lo, hi;
@@ -46,26 +48,14 @@ typedef struct {
     SDL_Window *window;
 } chip8_t;
 
-const uint16_t opcodes[] = {
-    0x0000,  0x00E0,  0x00EE, 0x1000,  0x2000, 0x3000,  0x4000, 0x5000,
-    0x6000,  0x7000,  0x8000, 0x8001,  0x8002, 0x8003,  0x8004, 0x8005,
-    0x8006,  0x8007,  0x800E, 0x9000,  0xA000, 0xB000,  0xC000, 0xD000,
-    0xE09E,  0xE0A1,  0xF007, 0xF00A,  0xF015, 0xF018,  0xF01E, 0xF029,
-    0xF033,  0xF055,  0xF065
-};
+extern const uint16_t opcodes[];
+extern const char* instructions[];
+extern const size_t instructions_size;
+extern const uint8_t num_operands_per_instruction[];
 
-const char* instructions[] = {
-    "SYS" , "CLS"  , "RET"  , "JUMP", "CALL" , "SKE"  , "SKNE", "SKRE",
-    "LOAD", "ADD"  , "MOVE" , "OR"  , "AND"  , "XOR"  , "ADDR", "SUB",
-    "SHR" , "SUBB" , "SHL"  , "JNEQ", "LOADI", "JUMPI", "RAND", "DRAW",
-    "SKPR", "SKUP" , "MOVED", "KEYD", "LOADD", "LOADS", "ADDI", "LDSPR",
-    "BCD" , "PUSH" , "POP"
-};
-
-const uint8_t num_operands_per_instruction[] = {
-    1, 0, 0, 1, 1, 2, 2, 2,
-    2, 2, 2, 2, 2, 2, 2, 2,
-    2, 2, 2, 1, 1, 1, 2, 3,
-    1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1
-};
+void chip8_emulateCycle(chip8_t *vm);
+void chip8_evaluate_opcode(chip8_t *vm);
+void chip8_initialize(chip8_t *vm);
+void chip8_initialize_vm(chip8_t *vm);
+void chip8_loadgame(chip8_t *vm, const char* filename);
+void chip8_renderScreen(chip8_t *vm);

@@ -8,7 +8,7 @@
 
 #include <SDL2/SDL.h>
 
-#include "chip8.h"
+#include "chip8-vm.h"
 
 unsigned char chip8_fontset[80] =
 {
@@ -28,6 +28,31 @@ unsigned char chip8_fontset[80] =
   0xE0, 0x90, 0x90, 0x90, 0xE0, // D
   0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
   0xF0, 0x80, 0xF0, 0x80, 0x80  // F
+};
+
+const uint16_t opcodes[] = {
+    0x0000,  0x00E0,  0x00EE, 0x1000,  0x2000, 0x3000,  0x4000, 0x5000,
+    0x6000,  0x7000,  0x8000, 0x8001,  0x8002, 0x8003,  0x8004, 0x8005,
+    0x8006,  0x8007,  0x800E, 0x9000,  0xA000, 0xB000,  0xC000, 0xD000,
+    0xE09E,  0xE0A1,  0xF007, 0xF00A,  0xF015, 0xF018,  0xF01E, 0xF029,
+    0xF033,  0xF055,  0xF065
+};
+
+const char* instructions[] = {
+    "SYS" , "CLS"  , "RET"  , "JUMP", "CALL" , "SKE"  , "SKNE", "SKRE",
+    "LOAD", "ADD"  , "MOVE" , "OR"  , "AND"  , "XOR"  , "ADDR", "SUB",
+    "SHR" , "SUBB" , "SHL"  , "JNEQ", "LOADI", "JUMPI", "RAND", "DRAW",
+    "SKPR", "SKUP" , "MOVED", "KEYD", "LOADD", "LOADS", "ADDI", "LDSPR",
+    "BCD" , "PUSH" , "POP"
+};
+const size_t instructions_size = sizeof(instructions) / sizeof(instructions[0]);
+
+const uint8_t num_operands_per_instruction[] = {
+    1, 0, 0, 1, 1, 2, 2, 2,
+    2, 2, 2, 2, 2, 2, 2, 2,
+    2, 2, 2, 1, 1, 1, 2, 3,
+    1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1
 };
 
 const size_t filesize(FILE* fp)
@@ -59,7 +84,7 @@ void chip8_loadgame(chip8_t *vm, const char* filename)
     fprintf(stderr, "game loaded: %s\n", filename);
 }
 
-static void chip8_initialize_vm(chip8_t *vm)
+void chip8_initialize_vm(chip8_t *vm)
 {
     vm->PC = 0x200;
     vm->opcode.value = 0;
@@ -469,13 +494,17 @@ static inline void pop(chip8_t *vm) {
     vm->PC += 2;
 }
 
-void chip8_emulateCycle(chip8_t *vm)
+static void chip8_fetch_instruction(chip8_t *vm)
 {
     vm->opcode.hi = vm->ram[vm->PC] << 8;
     vm->opcode.lo = vm->ram[vm->PC];
+}
 
-    switch (vm->opcode.hi & 0xF0) {
+void chip8_evaluate_opcode(chip8_t *vm)
+{
+    switch (MSB(vm->opcode.hi)) {
         case 0x0: {
+                        // printf("### foo\n");
                       const uint8_t lo = vm->opcode.lo;
 
                       if (lo == 0xE0) {
@@ -582,387 +611,8 @@ void chip8_emulateCycle(chip8_t *vm)
     }
 }
 
-void selftest()
+void chip8_emulateCycle(chip8_t *vm)
 {
-    chip8_t vm;
-
-    printf("chip8: selftest\n");
-
-    printf("Test ret:\t");
-    {
-        chip8_initialize_vm(&vm);
-        vm.SP = 0;
-        vm.stack[vm.SP] = 0x0AAA;
-        ret(&vm);
-        assert(vm.PC == 0xAAA);
-        printf("Ok\n");
-    }
-
-    printf("Test jmp:\t");
-    {
-        chip8_initialize_vm(&vm);
-        vm.opcode.value = 0x1AAA;
-        jmp(&vm);
-        assert(vm.PC == 0xAAA);
-        printf("Ok\n");
-    }
-
-    printf("Test call:\t");
-    {
-        chip8_initialize_vm(&vm);
-        vm.opcode.value = 0x2AAA;
-        call(&vm);
-        assert(vm.SP == 1 && vm.stack[vm.SP] == 0x200 && vm.PC == 0xAAA);
-        printf("Ok\n");
-    }
-
-    printf("Test ske:\t");
-    {
-        chip8_initialize_vm(&vm);
-        vm.opcode.value = 0x30AA;
-        vm.V[0] = 0xAA;
-        ske(&vm);
-        assert(vm.PC = 0x204);
-        printf("Ok\n");
-    }
-
-    printf("Test skne:\t");
-    {
-        chip8_initialize_vm(&vm);
-        vm.opcode.value = 0x4DAA;
-        vm.V[0xD] = 0xBB;
-        ske(&vm);
-        assert(vm.PC = 0x204);
-        printf("Ok\n");
-    }
-
-    printf("Test skre:\t");
-    {
-        chip8_initialize_vm(&vm);
-        vm.opcode.value = 0x5DC0;
-        vm.V[0xD] = 0x80;
-        vm.V[0xC] = 0x80;
-        skre(&vm);
-        assert(vm.PC == 0x204);
-        printf("Ok\n");
-    }
-
-    printf("Test load:\t");
-    {
-        chip8_initialize_vm(&vm);
-        vm.opcode.value = 0x60AA;
-        load(&vm);
-        assert(vm.PC == 0x202 && vm.V[0] == 0xAA);
-        printf("Ok\n");
-    }
-
-    printf("Test add:\t");
-    {
-        chip8_initialize_vm(&vm);
-        vm.opcode.value = 0x70FE;
-        vm.V[0] = 1;
-        add(&vm);
-        assert(vm.PC == 0x202 && vm.V[0] == 0xFF);
-        printf("Ok\n");
-    }
-
-    printf("Test setr:\t");
-    {
-        chip8_initialize_vm(&vm);
-        vm.opcode.value = 0x8120;
-        vm.V[1] = 0x00;
-        vm.V[2] = 0xFF;
-        setr(&vm);
-        assert(vm.PC == 0x202 && vm.V[1] == 0xFF);
-        printf("Ok\n");
-    }
-
-    printf("Test or:\t");
-    {
-        chip8_initialize_vm(&vm);
-        vm.opcode.value = 0x8121;
-        vm.V[1] = 0x01;
-        vm.V[2] = 0xFE;
-        or(&vm);
-        assert(vm.PC == 0x202 && vm.V[1] == 0xFF);
-        printf("Ok\n");
-    }
-
-    printf("Test and:\t");
-    {
-        chip8_initialize_vm(&vm);
-        vm.opcode.value = 0x8122;
-        vm.V[1] = 0x01;
-        vm.V[2] = 0xFF;
-        and(&vm);
-        assert(vm.PC == 0x202 && vm.V[1] == 0x01);
-        printf("Ok\n");
-    }
-
-    printf("Test xor:\t");
-    {
-        chip8_initialize_vm(&vm);
-        vm.opcode.value = 0x8123;
-        vm.V[1] = 0x0F;
-        vm.V[2] = 0xF0;
-        xor(&vm);
-        assert(vm.PC == 0x202 && vm.V[1] == 0xFF);
-        printf("Ok\n");
-    }
-
-    printf("Test addr:\t");
-    {
-        chip8_initialize_vm(&vm);
-        vm.opcode.value = 0x8014;
-        vm.V[0] = 0xFF;
-        vm.V[1] = 0xFF;
-        addr(&vm);
-        assert(vm.PC == 0x202 && vm.V[0] == 0xFE && vm.V[0xF] == 1);
-        printf("Ok\n");
-    }
-
-    printf("Test sub:\t");
-    {
-        chip8_initialize_vm(&vm);
-        vm.opcode.value = 0x8015;
-        vm.V[0] = 0x01;
-        vm.V[1] = 0x02;
-        sub(&vm);
-        assert(vm.PC == 0x202 && vm.V[0] == 0xFF && vm.V[0xF] == 0x1);
-        printf("Ok\n");
-    }
-
-    printf("Test shr:\t");
-    {
-        chip8_initialize_vm(&vm);
-        vm.opcode.value = 0x8006;
-        vm.V[0] = 0xFF;
-        shr(&vm);
-        assert(vm.PC == 0x202 && vm.V[0] == 0x7F);
-        printf("Ok\n");
-    }
-
-    printf("Test subb:\t");
-    {
-        chip8_initialize_vm(&vm);
-        vm.opcode.value = 0x8127;
-        vm.V[1] = 0xFF;
-        vm.V[2] = 0xFF;
-        subb(&vm);
-        assert(vm.PC == 0x202 && vm.V[1] == 0x0);
-        printf("Ok\n");
-    }
-
-    printf("Test shl:\t");
-    {
-        chip8_initialize_vm(&vm);
-        vm.opcode.value = 0x800E;
-        vm.V[0] = 0xFF;
-        shl(&vm);
-        assert(vm.PC == 0x202 && vm.V[0] == 0xFE);
-        printf("Ok\n");
-    }
-
-    printf("Test jneq:\t");
-    {
-        chip8_initialize_vm(&vm);
-        vm.opcode.value = 0x9010;
-        vm.V[0] = 0xAA;
-        vm.V[1] = 0xAB;
-        jneq(&vm);
-        assert(vm.PC == 0x204);
-        printf("Ok\n");
-    }
-
-    printf("Test seti:\t");
-    {
-        chip8_initialize_vm(&vm);
-        vm.opcode.value = 0xABBB;
-        seti(&vm);
-        assert(vm.PC == 0x202 && vm.I == 0xBBB);
-        printf("Ok\n");
-    }
-
-    printf("Test jmpv0:\t");
-    {
-        chip8_initialize_vm(&vm);
-        vm.opcode.value = 0xBC00;
-        vm.V[0] = 0xCC;
-        jmpv0(&vm);
-        assert(vm.PC == 0xCCC);
-        printf("Ok\n");
-    }
-
-    printf("Test rrand:\t");
-    {
-        chip8_initialize_vm(&vm);
-        vm.opcode.value = 0xC0FF;
-        rrand(&vm);
-        assert(vm.PC == 0x202 && vm.V[0] > 0 && vm.V[0] <= 0xFF);
-        printf("Ok\n");
-    }
-
-    printf("Test jkey:\t");
-    {
-        chip8_initialize_vm(&vm);
-        vm.opcode.value = 0xE09E;
-        vm.keycode = 'A';
-        vm.V[0] = 'A';
-        jkey(&vm);
-        assert(vm.PC == 0x204 && vm.keycode == vm.V[0]);
-        printf("Ok\n");
-    }
-
-    printf("Test jnkey:\t");
-    {
-        chip8_initialize_vm(&vm);
-        vm.opcode.value = 0xE0A1;
-        vm.keycode = 'A';
-        vm.V[0] = 'B';
-        jnkey(&vm);
-        assert(vm.PC == 0x204 && vm.keycode != vm.V[0]);
-        printf("Ok\n");
-    }
-
-    printf("Test getdelay:\t");
-    {
-        chip8_initialize_vm(&vm);
-        vm.opcode.value = 0xF007;
-        vm.delay_timer = 255;
-        getdelay(&vm);
-        assert(vm.PC == 0x202 && vm.V[0] == 255);
-        printf("Ok\n");
-    }
-
-    /*
-    printf("Test waitkey:\t");
-    {
-        chip8_initialize_vm(&vm);
-        vm.opcode.value = 0xF00A;
-        waitkey(&vm);
-        assert(vm.PC == 0x202);
-        printf("Ok\n");
-    }
-    */
-
-    printf("Test setdelay:\t");
-    {
-        chip8_initialize_vm(&vm);
-        vm.opcode.value = 0xF015;
-        vm.V[0] = 255;
-        setdelay(&vm);
-        assert(vm.PC == 0x202 && vm.delay_timer == 255);
-        printf("Ok\n");
-    }
-
-    printf("Test setsound:\t");
-    {
-        chip8_initialize_vm(&vm);
-        vm.opcode.value = 0xF018;
-        vm.V[0] = 255;
-        setsound(&vm);
-        assert(vm.PC == 0x202 && vm.sound_timer == 255);
-        printf("Ok\n");
-    }
-
-    printf("Test addi:\t");
-    {
-        chip8_initialize_vm(&vm);
-        vm.opcode.value = 0xF01E;
-        vm.V[0] = 0x1;
-        vm.I = 0x0FFF;
-        addi(&vm);
-        assert(vm.PC == 0x202 && vm.I == 0x0 && vm.V[0xF] == 1);
-        printf("Ok\n");
-    }
-
-    /*
-    printf("Test spritei:\t");
-    {
-        chip8_initialize_vm(&vm);
-        vm.opcode.value = 0xF029;
-        spritei(&vm);
-        assert(vm.PC == 0x202);
-        printf("Ok\n");
-    }
-    */
-
-    printf("Test bcd:\t");
-    {
-        chip8_initialize_vm(&vm);
-        vm.opcode.value = 0xF033;
-        vm.V[0] = 255;
-        bcd(&vm);
-        assert(vm.PC == 0x202 &&
-            vm.ram[vm.I] == 2 &&
-            vm.ram[vm.I + 1] == 5 &&
-            vm.ram[vm.I + 2] == 5);
-        printf("Ok\n");
-    }
-
-    printf("Test push:\t");
-    {
-        chip8_initialize_vm(&vm);
-        vm.opcode.value = 0xFF55;
-        vm.I = 0;
-        for (int i = 0; i < 16; i++) {
-            vm.V[i] = i;
-        }
-        push(&vm);
-        assert(vm.PC == 0x202);
-        for (int i = 0; i < 16; i++) {
-            assert(vm.ram[vm.I + i] == i);
-        }
-        printf("Ok\n");
-    }
-
-    printf("Test pop:\t");
-    {
-        chip8_initialize_vm(&vm);
-        vm.opcode.value = 0xFF65;
-        vm.I = 0;
-        for (int i = 0; i < 16; i++) {
-            vm.ram[vm.I + i] = i;
-        }
-        pop(&vm);
-        assert(vm.PC == 0x202);
-        for (int i = 0; i < 16; i++) {
-            assert(vm.V[i] == i);
-        }
-        printf("Ok\n");
-    }
-}
-
-int main(int argc, char* argv[])
-{
-    SDL_Event event;
-    SDL_Renderer *renderer;
-    SDL_Window *window;
-
-    for (int i = 0; i < argc; i++) {
-        if (!strcmp(argv[i], "-t")) {
-            selftest();
-            exit(0);
-        }
-    }
-
-    chip8_t vm;
-
-    chip8_initialize(&vm);
-    chip8_loadgame(&vm, "roms/pong.rom");
-
-    chip8_renderScreen(&vm);
-
-    for (;;) {
-        chip8_emulateCycle(&vm);
-
-        if (SDL_PollEvent(&event) && event.type == SDL_QUIT)
-            break;
-    }
-
-    SDL_DestroyRenderer(renderer);
-    SDL_DestroyWindow(window);
-    SDL_Quit();
-
-    return EXIT_SUCCESS;
+    chip8_fetch_instruction(vm);
+    chip8_evaluate_opcode(vm);
 }

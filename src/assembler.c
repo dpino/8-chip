@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "chip8.h"
+#include "chip8-vm.h"
 #include "util.h"
 
 #define DEBUG 0
