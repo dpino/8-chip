@@ -6,7 +6,7 @@ chip8-main: src/chip8-main.c
 	gcc src/util.c src/chip8-vm.c src/chip8-main.c -o chip8-main ${SDL2}
 
 chip8-asm: src/assembler.c
-	gcc src/util.c src/chip8-vm.c src/assembler.c -o chip8-asm ${SDL2}
+	gcc src/util.c src/parser.c src/chip8-vm.c src/assembler.c -o chip8-asm ${SDL2}
 
 chip8-disasm: src/disassembler.c
 	gcc src/util.c src/chip8-vm.c src/disassembler.c -o chip8-disasm ${SDL2}

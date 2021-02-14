@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "chip8-vm.h"
+#include "parser.h"
 #include "util.h"
 
 #define DEBUG 0
@@ -12,27 +13,6 @@ typedef struct {
     uint32_t numlines;
     char **lines;
 } source_program_t;
-
-typedef struct {
-    char keyword[8];
-    union {
-        struct {
-            char op1[6];
-            char op2[6];
-            char op3[6];
-        };
-        char op[6][3];
-    };
-    uint8_t numops;
-} instr_t;
-
-const static instr_t empty = {
-    keyword: "",
-    op1: "",
-    op2: "",
-    op3: "",
-    numops: 0
-};
 
 source_program_t* source_program_read(char* buffer)
 {
@@ -67,104 +47,6 @@ void source_program_free(source_program_t* p)
 {
     free(p->lines);
     free(p);
-}
-
-void parsing_error(const char* errmsg, const char* line, int offset)
-{
-    fprintf(stderr, "%s: %s\n", errmsg, line);
-    fprintf(stdout, "%*c\n", (int) strlen(errmsg) + 2 + offset, '^');
-    exit(1);
-}
-
-static int eol(char c)
-{
-    return c == '\0' || c == ';';
-}
-
-static int next_token(char* dest, const char* src, int start, char* delim)
-{
-    char* ptr = (char*) (src + start);
-    int len;
-
-    // Skip whitespace.
-    while (*ptr == ' ') ptr++;
-    // Mark beginning of token here.
-    char* begin = ptr;
-    // Move forward while not finding delim character or end of string.
-    while (!eol(*ptr)) {
-        for (int i = 0; i < strlen(delim); i++) {
-            // printf("'%c' == '%c'\n", ptr[0], delim[i]);
-            if (ptr[0] == delim[i])
-                goto exit;
-        }
-        ptr++;
-    }
-    // Copy token.
-    exit:
-    len = ptr - begin;
-    strncpy(dest, begin, len);
-    dest[len] = '\0';
-    // Return distance between last position and beginning.
-    return ptr - (src + start);
-}
-
-void assembler_parse_line(instr_t *instr, const char *line)
-{
-    *instr = empty;
-
-    if (DEBUG) {
-        printf("line: %s\n", line);
-    }
-
-    char token[8];
-    int pos = 0, start = 0;
-
-    pos += next_token(token, line, pos, " \t");
-    // Maybe address?
-    if (token[0] == '0' && token[1] == 'x') {
-        start = pos;
-        pos += next_token(token, line, pos, " \t");
-    }
-    // Must be a keyword.
-    if (strlen(token) > 5) {
-        parsing_error("Error: Unrecognized keyword", line, pos);
-    }
-    strcpy(instr->keyword, token);
-
-    // TODO: Verify keyword exists, otherwise return error.
-    /* Check is valid keyword.
-    int i = 0;
-    for (; i < NUM_INSTRUCTIONS; i++) {
-        if (!strcmp(instr->keyword, instructions[i])) {
-            break;
-        }
-    }
-    if (i == NUM_INSTRUCTIONS) {
-        parsing_error("Error: Unrecognized keyword", l, 0);
-    }
-    */
-
-    // Parse operands.
-    int i = 0;
-    while (1) {
-        pos += next_token(token, line, pos, " \t,");
-        if (strlen(token) > 0) {
-            strcpy(instr->op[i++], token);
-        }
-        if (eol(line[pos]))
-            break;
-        pos++;
-    }
-    instr->numops = i;
-
-    /*
-    // TODO: Check number of operands.
-    if (num_operands_per_instruction[i] < instr->numops) {
-        parsing_error("Error: Too few operands", line, start);
-    } else if (num_operands_per_instruction[i] < instr->numops) {
-        parsing_error("Error: Too many operands", line, start);
-    }
-    */
 }
 
 uint16_t tohex(const char* str)
@@ -268,7 +150,7 @@ void assembler_dump_instruction(uint16_t opcode, const instr_t* instr)
 
 size_t assembler_compile_program(uint16_t *output, source_program_t* program)
 {
-    instr_t instr = empty;
+    instr_t instr = empty_instr;
     int i = 0;
     for (; i < program->numlines; i++) {
         assembler_parse_line(&instr, program->lines[i]);
