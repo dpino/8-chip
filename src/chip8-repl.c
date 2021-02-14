@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include "chip8-vm.h"
+#include "parser.h"
 
 #define PROMPT "> "
 
@@ -32,9 +33,19 @@ static void dump(chip8_t* vm, const char *args)
     }
 }
 
-static void eval(chip8_t* vm, const char *args)
+static void eval(chip8_t* vm, const char* line)
 {
     fprintf(stdout, "eval\n");
+    instr_t instr = empty_instr;
+
+    assembler_parse_line(&instr, line);
+
+    // TODO: Use assembler to compile instruction.
+    // opcode_t opcode = assembler_compile_instruction(&instr);
+
+    opcode_t opcode;
+    vm->opcode = opcode;
+    chip8_evaluate_opcode(vm);
 }
 
 typedef void(*method_t)(chip8_t* vm, const char*);
