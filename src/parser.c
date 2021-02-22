@@ -193,7 +193,7 @@ uint16_t assembler_compile_instruction(instr_t* instr)
         }
         break;
     }
-    return bswap(opcode);
+    return opcode;
 }
 
 void dump_instr(const instr_t* instr)
