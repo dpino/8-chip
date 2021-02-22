@@ -27,26 +27,37 @@ static void save(chip8_t* vm, const char *args)
 static void dump(chip8_t* vm, const char *args)
 {
     printf("PC: 0x%x, SP: 0x%x, I: 0x%x\n", vm->PC, vm->SP, vm->I);
+    // Count how many registers are set.
+    uint8_t count = 0;
     for (int i = 0; i < NUM_REGISTERS; i++) {
-        printf("V%d: 0x%x", i, vm->V[i]);
-        printf(i < NUM_REGISTERS - 1 ? ", " : "\n");
-        if (i == 7)
+        if (vm->V[i] > 0)
+            count++;
+    }
+
+    // Print registers that have a value set.
+    for (int i = 0, j = 0; i < NUM_REGISTERS; i++) {
+        if (count > 0 && j == count) {
+            printf("\n");
+            break;
+        }
+        if (vm->V[i] > 0) {
+            printf("#%x: 0x%x", i, vm->V[i]);
+            if (++j < count)
+                printf(", ");
+        }
+        if (count / 2 > 0 && j == count / 2)
             printf("\n");
     }
 }
 
 static void eval(chip8_t* vm, const char* line)
 {
-    fprintf(stdout, "eval\n");
     instr_t instr = empty_instr;
 
     assembler_parse_line(&instr, line);
-
-    // TODO: Use assembler to compile instruction.
-    // opcode_t opcode = assembler_compile_instruction(&instr);
-
-    opcode_t opcode;
-    vm->opcode = opcode;
+    vm->opcode.value = assembler_compile_instruction(&instr);
+    if (DEBUG)
+        fprintf(stderr, "opcode: 0x%.4x\n", vm->opcode.value);
     chip8_evaluate_opcode(vm);
 }
 
@@ -58,9 +69,9 @@ typedef struct {
 } command_t;
 
 command_t commands[] = {
-    { "dump", dump },
-    { "load", load },
-    { "save", save }
+    { ".dump", dump },
+    { ".load", load },
+    { ".save", save }
 };
 
 command_t* lookup_command(const char *line)

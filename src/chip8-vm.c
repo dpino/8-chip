@@ -504,7 +504,6 @@ void chip8_evaluate_opcode(chip8_t *vm)
 {
     switch (MSB(vm->opcode.hi)) {
         case 0x0: {
-                        // printf("### foo\n");
                       const uint8_t lo = vm->opcode.lo;
 
                       if (lo == 0xE0) {

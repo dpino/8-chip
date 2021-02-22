@@ -1,7 +1,10 @@
 #include <stdio.h>
 #include <assert.h>
+#include <stdbool.h>
+#include <stdarg.h>
 
 #include "chip8-vm.h"
+#include "parser.h"
 
 typedef void (*test_fn_t)(chip8_t*);
 
@@ -311,7 +314,7 @@ void test_spritei(chip8_t* vm)
     assert(vm->PC == 0x202);
 }
 
-void test(const char* name, test_fn_t test_fn)
+void test_opcode(const char* name, test_fn_t test_fn)
 {
     chip8_t vm;
 
@@ -321,49 +324,190 @@ void test(const char* name, test_fn_t test_fn)
     printf("Ok\n");
 }
 
-void selftest()
+bool instr_equals(const instr_t* actual, const instr_t* expected)
 {
-    chip8_t vm;
+    return strcmp(actual->keyword, expected->keyword) == 0 &&
+           strcmp(actual->op1, expected->op1) == 0 &&
+           strcmp(actual->op2, expected->op2) == 0 &&
+           strcmp(actual->op3, expected->op3) == 0 &&
+           actual->numops == expected->numops;
+}
 
-    printf("chip8: selftest\n");
+void print_instr(const instr_t *instr)
+{
+    printf("{ keyword: '%s', ", instr->keyword);
+    for (int i = 0; i < 3; i++) {
+        size_t len = strlen(instr->op[i]);
+        if (len > 0)
+            printf("op%d: '%s', ", i, instr->op[i]);
+    }
+    if (instr->numops > 0)
+        printf("numops: %d }", instr->numops);
+    printf("\n");
+}
 
-    test("RET", test_ret);
-    test("JUMP", test_jmp);
-    test("CALL", test_call);
-    test("SKE", test_ske);
-    test("SKNE", test_skne);
-    test("SKRE", test_skre);
-    test("LOAD", test_load);
-    test("ADD", test_add);
-    test("SETR", test_setr);
-    test("OR", test_or);
-    test("AND", test_and);
-    test("XOR", test_xor);
-    test("ADDR", test_addr);
-    test("SUB", test_sub);
-    test("SHR", test_shr);
-    test("SUBB", test_subb);
-    test("SHL", test_shl);
-    test("JNEQ", test_jneq);
-    test("SETI", test_seti);
-    test("JMPV0", test_jmpv0);
-    test("RRAND", test_rrand);
-    test("JKEY", test_jkey);
-    test("JNKEY", test_jnkey);
-    test("GETDELAY", test_getdelay);
-    test("SETDELAY", test_setdelay);
-    test("SETSOUND", test_setsound);
-    test("ADDI", test_addi);
-    test("BCD", test_bcd);
-    test("PUSH", test_push);
-    test("POP", test_pop);
-    // test("WAITKEY", test_waitkey);
-    // test("SPRITEI", test_spritei);
+void test_parse_line(const char* line, const instr_t* expected)
+{
+    instr_t actual;
+
+    printf("Parse '%s': ", line);
+    assembler_parse_line(&actual, line);
+    if (instr_equals(&actual, expected)) {
+        print_instr(&actual);
+    } else {
+        printf("Error\n");
+        print_instr(&actual);
+        print_instr(expected);
+        exit(1);
+    }
+}
+
+void fatal(const char* fmt, ...)
+{
+    va_list argv;
+
+    va_start(argv, fmt);
+    vfprintf(stderr, fmt, argv);
+    va_end(argv);
+    exit(1);
+}
+
+instr_t* instruction(char* arg1, ...)
+{
+    static instr_t ret;
+    memset(&ret, 0, sizeof(instr_t));
+
+    va_list argv;
+    va_start(argv, arg1);
+
+    int numops = 0;
+    char* arg = arg1;
+    while (arg != NULL) {
+        if (!strcmp(arg, "keyword")) {
+            arg = va_arg(argv, char*);
+            strcpy(ret.keyword, arg);
+        } else if (!strcmp(arg, "op1")) {
+            arg = va_arg(argv, char*);
+            strcpy(ret.op1, arg);
+            numops++;
+        } else if (!strcmp(arg, "op2")) {
+            arg = va_arg(argv, char*);
+            strcpy(ret.op2, arg);
+            numops++;
+        } else if (!strcmp(arg, "op3")) {
+            arg = va_arg(argv, char*);
+            strcpy(ret.op3, arg);
+            numops++;
+        } else {
+            fatal("Unrecognized parameter: %s", arg);
+        }
+        arg = va_arg(argv, char*);
+    }
+    va_end(argv);
+
+    ret.numops = numops;
+    return &ret;
+}
+
+void opcode_tests()
+{
+    printf("Opcode tests\n");
+
+    test_opcode("RET", test_ret);
+    test_opcode("JUMP", test_jmp);
+    test_opcode("CALL", test_call);
+    test_opcode("SKE", test_ske);
+    test_opcode("SKNE", test_skne);
+    test_opcode("SKRE", test_skre);
+    test_opcode("LOAD", test_load);
+    test_opcode("ADD", test_add);
+    test_opcode("SETR", test_setr);
+    test_opcode("OR", test_or);
+    test_opcode("AND", test_and);
+    test_opcode("XOR", test_xor);
+    test_opcode("ADDR", test_addr);
+    test_opcode("SUB", test_sub);
+    test_opcode("SHR", test_shr);
+    test_opcode("SUBB", test_subb);
+    test_opcode("SHL", test_shl);
+    test_opcode("JNEQ", test_jneq);
+    test_opcode("SETI", test_seti);
+    test_opcode("JMPV0", test_jmpv0);
+    test_opcode("RRAND", test_rrand);
+    test_opcode("JKEY", test_jkey);
+    test_opcode("JNKEY", test_jnkey);
+    test_opcode("GETDELAY", test_getdelay);
+    test_opcode("SETDELAY", test_setdelay);
+    test_opcode("SETSOUND", test_setsound);
+    test_opcode("ADDI", test_addi);
+    test_opcode("BCD", test_bcd);
+    test_opcode("PUSH", test_push);
+    test_opcode("POP", test_pop);
+    // test_opcode("WAITKEY", test_waitkey);
+    // test_opcode("SPRITEI", test_spritei);
+}
+
+
+void parsing_tests()
+{
+    printf("\nParsing tests\n");
+
+    test_parse_line("LOAD #a, 0x02", instruction(
+        "keyword", "LOAD",
+        "op1", "#a",
+        "op2", "0x02", NULL
+    ));
+    test_parse_line("LOADI 0x2ea", instruction(
+        "keyword", "LOADI",
+        "op1", "0x2ea", NULL
+    ));
+    test_parse_line("DRAW #a, #b, 0x06", instruction(
+        "keyword", "DRAW",
+        "op1", "#a",
+        "op2", "#b",
+        "op3", "0x06", NULL
+    ));
+    test_parse_line("CALL 0x2d4", instruction(
+        "keyword", "CALL",
+        "op1", "0x2d4", NULL
+    ));
+    test_parse_line("LOADD #0", instruction(
+        "keyword", "LOADD",
+        "op1", "#0", NULL
+    ));
+    test_parse_line("MOVED #0", instruction(
+        "keyword", "MOVED",
+        "op1", "#0", NULL
+    ));
+    test_parse_line("SKE #0, 0x00", instruction(
+        "keyword", "SKE",
+        "op1", "#0",
+        "op2", "0x00", NULL
+    ));
+    test_parse_line("JUMP 0x21a", instruction(
+        "keyword", "JUMP",
+        "op1", "0x21a", NULL
+    ));
+    test_parse_line("RAND #7, #1", instruction(
+        "keyword", "RAND",
+        "op1", "#7",
+        "op2", "#1", NULL
+    ));
+    test_parse_line("ADD #7, 0x08", instruction(
+        "keyword", "ADD",
+        "op1", "#7",
+        "op2", "0x08", NULL
+    ));
 }
 
 int main(int argc, char* argv[])
 {
-    selftest();
+    printf("chip8: selftest\n");
+
+    opcode_tests();
+    parsing_tests();
+
+    printf("chip8: Ok\n");
 
     return 0;
 }
