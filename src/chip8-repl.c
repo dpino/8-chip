@@ -11,8 +11,10 @@
 #define PROMPT "> "
 
 enum Commands {
-    SOURCE, DUMP, SAVE
+    SOURCE, DUMP, HELP, SAVE
 };
+
+static void help(chip8_t* vm, const char *args);
 
 static void load(chip8_t* vm, const char *args)
 {
@@ -66,13 +68,24 @@ typedef void(*method_t)(chip8_t* vm, const char*);
 typedef struct {
     char* label;
     method_t fn;
+    const char* description;
 } command_t;
 
 command_t commands[] = {
-    { ".dump", dump },
-    { ".load", load },
-    { ".save", save }
+    { ".dump", dump, "Print out state of VM." },
+    { ".help", help, "Print out this help." },
+    { ".load", load, "Load a program from a file." },
+    { ".save", save, "Save current program to a file." }
 };
+
+static void help(chip8_t* vm, const char *args)
+{
+    size_t size = sizeof(commands) / sizeof(command_t);
+    for (int i = 0; i < size; i++) {
+        command_t each = commands[i];
+        printf("%s\t%s\n", each.label, each.description);
+    }
+}
 
 command_t* lookup_command(const char *line)
 {
