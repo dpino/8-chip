@@ -1,0 +1,5 @@
+- [X] Refactor the tests so they do not call instructions directly, but they do it through a higher level common function (chip8_eval).
+- [X] Create an REPL where users execute instructions directly, visualize the state of the VM and maybe even dump memory.
+- [ ] Being able to load programs in the repl and execute them.
+- [] Detach the backend from the initialization of the VM.
+- [] Create a PNG-based backend.
