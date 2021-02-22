@@ -10,7 +10,7 @@ typedef struct {
             char op2[6];
             char op3[6];
         };
-        char op[6][3];
+        char op[3][6];
     };
     uint8_t numops;
 } instr_t;
