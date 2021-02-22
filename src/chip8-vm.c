@@ -125,7 +125,7 @@ void chip8_initialize(chip8_t *vm)
 
 static void chip8_setRandomColor(chip8_t *vm)
 {
-    uint32_t color = random() % (1 << 32 - 1);
+    uint32_t color = rand() % (1 << 32 - 1);
     uint8_t r = color >> 16 & 0xff, g = color >> 8 & 0xff, b = color & 0xff;
     SDL_SetRenderDrawColor(vm->renderer, r, g, b, 255);
 }
@@ -360,7 +360,7 @@ static inline void rrand(chip8_t *vm) {
     const uint8_t value = vm->opcode.lo;
 
     srand(time(NULL));
-    vm->V[x] = random() % 256 & value;
+    vm->V[x] = rand() % 256 & value;
     vm->PC += 2;
 }
 
