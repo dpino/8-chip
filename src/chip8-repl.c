@@ -7,6 +7,7 @@
 
 #include "chip8-vm.h"
 #include "parser.h"
+#include "util.h"
 
 #define PROMPT "> "
 
@@ -18,7 +19,8 @@ static void help(chip8_t* vm, const char *args);
 
 static void load(chip8_t* vm, const char *args)
 {
-    fprintf(stdout, "load %s\n", args);
+    char* filename = first_word((char*) args);
+    fprintf(stdout, "load %s\n", filename);
 }
 
 static void save(chip8_t* vm, const char *args)

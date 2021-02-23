@@ -1,6 +1,7 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
 
 #define BUFFER_STRIDE 4096
 
@@ -64,4 +65,45 @@ size_t readbin(uint8_t *buffer, const char* filename)
     fclose(fp);
 
     return size;
+}
+
+char* strtrim(char* str)
+{
+    size_t start, end;
+    size_t i, len = strlen(str);
+
+    // If there are not spaces at the beginning and end, return whole string.
+    if (str[0] != ' ' && str[len - 1] != ' ')
+        return str;
+
+    // Skip leading spaces.
+    for (i = 0; str[i] == ' ' && i < len - 1; i++);
+    start = i;
+
+    // Skip trailing spaces.
+    for (i = len - 1; i >= 0 && str[i] == ' '; i--);
+    end = i;
+
+    // Copy substring.
+    memmove(str, str + start, end - start + 1);
+    str[(end - start) + 1] = '\0';
+    return str;
+}
+
+char* first_word(char* str)
+{
+    // Remove leading and trailing spaces.
+    strtrim(str);
+
+    // Locate first space.
+    char* end = strchr(str, ' ');
+    if (!end)
+        end = str + strlen(str) - 1;
+    size_t len = end - str + 1;
+
+    // Copy substring.
+    char* ret = (char*) calloc(len, sizeof(char));
+    strncpy(ret, str, len);
+    ret[len - 1] = '\0';
+    return ret;
 }
