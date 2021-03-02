@@ -3,6 +3,7 @@ chip8-asm
 chip8-disasm
 chip8-test
 chip8-main
+chip8-repl
 *.rom
 *.bin
 *.chip8
