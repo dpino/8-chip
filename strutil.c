@@ -54,17 +54,17 @@ char* trim(const char *str)
 
 static size_t countWords(const char* str, char delim)
 {
-	size_t ret = 0;
-	size_t len = strlen(str);
-	for (size_t i = 0; i < len;) {
-	    if (str[i] == delim) {
+    size_t ret = 0;
+    size_t len = strlen(str);
+    for (size_t i = 0; i < len;) {
+        if (str[i] == delim) {
             while (str[i++] == delim && i < len);
             ret++;
         } else {
             i++;
         }
-	}
-	return ret + 1;
+    }
+    return ret + 1;
 }
 
 char** split(const char* str, char delim, size_t* nmemb)
@@ -72,18 +72,18 @@ char** split(const char* str, char delim, size_t* nmemb)
     *nmemb = countWords(str, delim);
     char** ret = (char**) calloc(*nmemb, sizeof(char*));
 
-	size_t len = strlen(str);
-	size_t i = 0, start = 0, j = 0;
-	while (i < len) {
-	    if (str[i] == delim) {
-	        ret[j++] = copyString(str, start, i);
+    size_t len = strlen(str);
+    size_t i = 0, start = 0, j = 0;
+    while (i < len) {
+        if (str[i] == delim) {
+            ret[j++] = copyString(str, start, i);
             while (str[i++] == delim && i < len);
             start = i - 1;
         } else {
             i++;
         }
-	}
-	ret[j++] = copyString(str, start, i);
+    }
+    ret[j++] = copyString(str, start, i);
 
     return ret;
 }
@@ -92,7 +92,7 @@ char** split(const char* str, char delim, size_t* nmemb)
 static void test_trim(const char* str, const char* expected)
 {
     printf("test_trim: '%s' == '%s'\n", str, expected);
-	char* actual = trim(str); 
+    char* actual = trim(str);
     assert(strcmp(actual, expected) == 0);
     free(actual);
 }
@@ -125,14 +125,14 @@ static void test_split(const char* str, char* expected[], size_t expected_nelem)
 
 void selftest()
 {
-    fprintf(stdout, "selftest:\n");
+    printf("selftest:\n");
 
     test_trim("  foo  bar  quaz  ", "foo  bar  quaz");
 
     char* parts[] = { "foo", "bar", "quaz" };
     test_split("  foo  bar  quaz  ", parts, 3);
 
-    fprintf(stdout, "Ok\n");
+    printf("Ok\n");
 }
 
 int main(int argc, char* argv[])
